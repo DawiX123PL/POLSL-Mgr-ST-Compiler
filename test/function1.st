@@ -13,7 +13,7 @@ VAR_OUTPUT
 END_VAR
 
 VAR
-	c : INT := INT#2#1001;
+	c : INT := INT#10#-1001;
 END_VAR
 
 test_func:=0;

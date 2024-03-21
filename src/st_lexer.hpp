@@ -18,13 +18,15 @@ struct Token
     Pos pos;
     std::string str;
 
+    
+
     enum class TokenType
     {
         UNNOWN,
     };
 };
 
-constexpr std::pair<char *, Token::TokenType> keywords_list[] = {
+constexpr std::pair<const char *, Token::TokenType> keywords_list[] = {
 
     // comments
     {"//", Token::TokenType::UNNOWN},
