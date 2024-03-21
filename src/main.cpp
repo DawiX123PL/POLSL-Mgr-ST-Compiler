@@ -16,9 +16,15 @@ int main(int argc, char** argv){
     }
 
 
+    std::string file_content;
 
+    bool isok = ReadFileContent("test/function1.st", &file_content);
+    if(isok){
+        PrintFileContent(file_content);
 
-
+        std::vector<Token> tokens;
+        Tokenize(file_content, &tokens);
+    }
 
 }
 

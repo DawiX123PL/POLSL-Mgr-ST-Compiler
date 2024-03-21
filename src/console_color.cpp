@@ -4,9 +4,7 @@
 namespace Console
 {
 
-
-
-std::string Color(ColorCode code, std::string text)
+    std::string Color(ColorCode code, std::string text)
     {
         const char *color_str = color_default;
         const char *default_str = color_default;
