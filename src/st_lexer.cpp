@@ -136,9 +136,9 @@ std::vector<Error> SplitToSubstrings(const std::string &_code, std::vector<Strin
 
     bool is_numeric = false;
 
-    char prev = ' ';
-    char curr = ' ';
-    char first = ' ';
+    unsigned char prev = ' ';
+    unsigned char curr = ' ';
+    unsigned char first = ' ';
 
     int begining_index = 0;
 
@@ -293,7 +293,7 @@ std::vector<Error> SplitToSubstrings(const std::string &_code, std::vector<Strin
         return {
             Error(Error::ErrorType::UNEXPECTED_SYMBOL, "Unexpected symbol at position " +
                                                            current_pos.ToStringLong() +
-                                                           " (Symbol: \'" + std::string(1, curr) + "\'; ASCI code:" + std::to_string((int)curr) + ")")};
+                                                           " (Symbol: \'" + std::string(1, curr) + "\'; ASCI code:" + std::to_string(curr) + ")")};
     }
 
     return {};
