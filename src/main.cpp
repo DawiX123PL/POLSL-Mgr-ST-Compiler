@@ -4,9 +4,8 @@
 #include "file_utils.hpp"
 #include "argument_parser.hpp"
 
-
-
-int main(int argc, char** argv){
+int main(int argc, char **argv)
+{
 
     std::map<ArgFlag, std::string> args = ArgsToMap(argc, argv);
 
@@ -15,18 +14,26 @@ int main(int argc, char** argv){
         PrintArgs(args);
     }
 
-
+    std::string file_name = "test/function1.st";
     std::string file_content;
+    bool isok = ReadFileContent(file_name, &file_content);
 
-    bool isok = ReadFileContent("test/function1.st", &file_content);
-    if(isok){
+    if (isok)
+    {
         PrintFileContent(file_content);
 
-        std::vector<Token> tokens;
-        Tokenize(file_content, &tokens);
+        std::vector<Token> token_list;
+        std::vector<Error> err = Tokenize(file_content, &token_list);
+
+        std::cout << Console::FgBrightBlue("[TOKEN COUNT]: ") << token_list.size() << "\n";
+        for (int i = 0; i < token_list.size(); i++)
+        {
+            std::cout << Console::FgBrightBlue("[TOKEN]: ") << token_list[i].ToString() << "\n";
+        }
+
+        for (int i = 0; i < err.size(); i++)
+        {
+            std::cout << Console::FgBrightRed("[Error]: ") << err[i].ToString() << "\n";
+        }
     }
-
 }
-
-
-

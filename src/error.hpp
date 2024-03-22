@@ -31,11 +31,11 @@ public:
     {
         if (msg.size())
         {
-            return "Error: " + ErrorTypeToString(type) + ": " + msg + "\n";
+            return ErrorTypeToString(type) + ": " + msg + "\n";
         }
         else
         {
-            return "Error: " + ErrorTypeToString(type) + "\n";
+            return ErrorTypeToString(type) + "\n";
         }
     }
 

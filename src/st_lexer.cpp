@@ -20,6 +20,8 @@ struct StringAndPos
 bool IsSubstrAtPos(const std::string &code, int pos, char *sub_str);
 std::vector<Error> SplitToSubstrings(const std::string &code, std::vector<StringAndPos> *tokens_str);
 void SplitConsecutiveOperators(const std::string &code, std::vector<std::string> *oper_list);
+bool TryCategoriseKeywordToken(std::string str, Token *token);
+bool TryCategoriseNumericLiterals(std::string str, Token *token);
 
 bool IsIdentifierChar(char c);
 bool IsNumericChar(char c);
@@ -29,7 +31,7 @@ bool IsOperatorChar(char c);
 // **********************************************************************************************************************************************
 // Definitions
 
-std::vector<Error> Tokenize(const std::string &code, std::vector<Token> *tokens)
+std::vector<Error> Tokenize(const std::string &code, std::vector<Token> *token_list)
 {
 
     std::vector<Error> err_list;
@@ -37,15 +39,96 @@ std::vector<Error> Tokenize(const std::string &code, std::vector<Token> *tokens)
 
     err_list = SplitToSubstrings(code, &tokens_str);
 
-    std::cout << Console::FgBrightBlue("[TOKEN COUNT]: ") << tokens_str.size() << "\n";
+    token_list->clear();
+    token_list->resize(tokens_str.size());
+
+    // categorise tokens
     for (int i = 0; i < tokens_str.size(); i++)
     {
-        std::cout << Console::FgBrightBlue("[TOKEN]: ") << tokens_str[i].str << "\n";
+        std::string str = tokens_str[i].str;
+        Token *token = &(*token_list)[i];
+
+        if (TryCategoriseKeywordToken(str, token))
+        {
+            continue;
+        }
+
+        if (TryCategoriseNumericLiterals(str, token))
+        {
+            continue;
+        }
+
+        token->type = TokenType::IDENTIFIER;
     }
 
-    return {}; // OK
+    // copy position and string from code to new tokens
+    for (int i = 0; i < tokens_str.size(); i++)
+    {
+        (*token_list)[i].str = tokens_str[i].str;
+        (*token_list)[i].pos = tokens_str[i].pos;
+    }
+
+    return err_list;
 }
 
+bool TryCategoriseKeywordToken(std::string str, Token *token)
+{
+    constexpr int keywords_list_size = sizeof(keywords_list) / sizeof(keywords_list[0]);
+    for (int i = 0; i < keywords_list_size; i++)
+    {
+
+        const char *keyword = keywords_list[i].first;
+
+        if (str == keyword)
+        {
+            token->type = keywords_list[i].second;
+            token->str = keyword;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool TryCategoriseNumericLiterals(std::string str, Token *token)
+{
+    // true if first char is numeric
+    if (IsNumericChar(str[0]))
+    {
+        token->type = TokenType::NUMERIC_LITERAL;
+        return true;
+    }
+
+    // true if contains # symbol
+    for (int i = 0; i < str.size(); i++)
+    {
+        if (str[i] == '#')
+        {
+            token->type = TokenType::NUMERIC_LITERAL;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+const char *TokenTypeToString(TokenType type)
+{
+    constexpr int count = sizeof(tokentype_names_list) / sizeof(tokentype_names_list[0]);
+    for (int i = 0; i < count; i++)
+    {
+        TokenType t = tokentype_names_list[i].second;
+
+        if (t == type)
+        {
+            return tokentype_names_list[i].first;
+        }
+    }
+
+    return "UNNOWN";
+}
+
+// TODO comments
 std::vector<Error> SplitToSubstrings(const std::string &_code, std::vector<StringAndPos> *tokens_str)
 {
 
@@ -58,14 +141,23 @@ std::vector<Error> SplitToSubstrings(const std::string &_code, std::vector<Strin
     char first = ' ';
 
     int begining_index = 0;
-    Pos pos(0, 0);
+
+    Pos begining_pos = Pos(1, 0);
+    Pos current_pos = Pos(1, 0);
 
     for (int current_index = 0; current_index < code.size(); current_index++)
     {
+        current_pos.col++;
 
         prev = curr;
         curr = code[current_index];
         first = code[begining_index];
+
+        if (curr == '\n')
+        {
+            current_pos.col = 0;
+            current_pos.line++;
+        }
 
         if (IsNumericChar(first) || curr == '#')
         {
@@ -103,7 +195,7 @@ std::vector<Error> SplitToSubstrings(const std::string &_code, std::vector<Strin
             continue;
         }
 
-        if (is_numeric && ((prev == 'e') || (prev == 'E')) && ((curr == '+')|| (curr == '-')))
+        if (is_numeric && ((prev == 'e') || (prev == 'E')) && ((curr == '+') || (curr == '-')))
         {
             // do nothing - skip
             continue;
@@ -114,12 +206,14 @@ std::vector<Error> SplitToSubstrings(const std::string &_code, std::vector<Strin
         if (IsWhite(first) && IsIdentifierChar(curr))
         {
             begining_index = current_index;
+            begining_pos = current_pos;
             is_numeric = false;
             continue;
         }
         if (IsWhite(first) && IsOperatorChar(curr))
         {
             begining_index = current_index;
+            begining_pos = current_pos;
             is_numeric = false;
             continue;
         }
@@ -129,8 +223,9 @@ std::vector<Error> SplitToSubstrings(const std::string &_code, std::vector<Strin
         if (IsIdentifierChar(first) && IsOperatorChar(curr))
         {
             int len = current_index - begining_index;
-            tokens_str->emplace_back(code.substr(begining_index, len), pos);
+            tokens_str->emplace_back(code.substr(begining_index, len), begining_pos);
             begining_index = current_index;
+            begining_pos = current_pos;
             is_numeric = false;
             continue;
         }
@@ -144,7 +239,7 @@ std::vector<Error> SplitToSubstrings(const std::string &_code, std::vector<Strin
 
             SplitConsecutiveOperators(operators_str, &operator_list);
 
-            Pos operator_pos = pos;
+            Pos operator_pos = current_pos;
 
             for (int j = 0; j < operator_list.size(); j++)
             {
@@ -153,6 +248,7 @@ std::vector<Error> SplitToSubstrings(const std::string &_code, std::vector<Strin
             }
 
             begining_index = current_index;
+            begining_pos = current_pos;
             is_numeric = false;
             continue;
         }
@@ -162,8 +258,9 @@ std::vector<Error> SplitToSubstrings(const std::string &_code, std::vector<Strin
         if (IsIdentifierChar(first) && IsWhite(curr))
         {
             int len = current_index - begining_index;
-            tokens_str->emplace_back(code.substr(begining_index, len), pos);
+            tokens_str->emplace_back(code.substr(begining_index, len), begining_pos);
             begining_index = current_index;
+            begining_pos = current_pos;
             is_numeric = false;
             continue;
         }
@@ -177,21 +274,26 @@ std::vector<Error> SplitToSubstrings(const std::string &_code, std::vector<Strin
 
             SplitConsecutiveOperators(operators_str, &operator_list);
 
-            Pos operator_pos = pos;
+            Pos operator_pos = begining_pos;
 
             for (int j = 0; j < operator_list.size(); j++)
             {
                 operator_pos.col += operator_list[j].size();
                 tokens_str->emplace_back(operator_list[j], operator_pos);
             }
+
             begining_index = current_index;
+            begining_pos = current_pos;
             is_numeric = false;
             continue;
         }
 
         //////////////////////////////////////////////////////////////////////
 
-        return {Error(Error::ErrorType::UNEXPECTED_SYMBOL, "Unexpected symbol (ASCI \'" + std::string(1, curr) + "\' ;code:" + std::to_string((int)curr) + ") at position .... ")};
+        return {
+            Error(Error::ErrorType::UNEXPECTED_SYMBOL, "Unexpected symbol at position " +
+                                                           current_pos.ToStringLong() +
+                                                           " (Symbol: \'" + std::string(1, curr) + "\'; ASCI code:" + std::to_string((int)curr) + ")")};
     }
 
     return {};
@@ -244,8 +346,8 @@ bool IsIdentifierChar(char c)
 
 bool IsNumericChar(char c)
 {
-    return (c >= '0' && c <= '9') || 
-        (c == '#');
+    return (c >= '0' && c <= '9') ||
+           (c == '#');
 }
 
 bool IsWhite(char c)
