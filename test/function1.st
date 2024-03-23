@@ -1,7 +1,7 @@
 
 
 
-FUNCTION test_func : BOOL
+FUNCTION test_func: BOOL
 
 VAR_INPUT
     aaa: INT;
@@ -13,10 +13,14 @@ VAR_OUTPUT
 END_VAR
 
 VAR
-    c : INT := INT#2#-1001;
+    c: INT := 1001;
 END_VAR
 
-test_func := 0.123 ;
-x := - a + b + c ;
+test_func := 0.123;
+x := - a + b + c;
 RETURN ;
+
+END_FUNCTION
+
+
 
