@@ -29,17 +29,19 @@ namespace AST
         virtual void Evaluate() = 0;
     };
 
+    typedef std::shared_ptr<AST::Expr> ExprPtr;
+
     class Unnary : public Expr
     {
     protected:
-        std::unique_ptr<Expr> expr;
+        ExprPtr expr;
     };
 
     class Binary : public Expr
     {
     protected:
-        std::unique_ptr<Expr> r_expr;
-        std::unique_ptr<Expr> l_expr;
+        ExprPtr r_expr;
+        ExprPtr l_expr;
     };
 
     //
@@ -55,13 +57,33 @@ namespace AST
         void Evaluate(){};
     };
 
-    class Variable{
-        // 1. name
-        // 2. type;
-        // 3. initial value;
+    class Variable
+    {
+        std::string name;
+        std::string type;
+        ExprPtr initial_value;
+
+    public:
+        const std::string &GetName() { return name; }
+
+        Variable()
+            : name(),
+              type(),
+              initial_value(nullptr) {}
+
+        Variable(std::string _name, std::string _type)
+            : name(_name),
+              type(_type),
+              initial_value(nullptr) {}
+
+        Variable(std::string _name, std::string _type, ExprPtr _initial)
+            : name(_name),
+              type(_type),
+              initial_value(_initial) {}
     };
 
-    class Function : public Expr{
+    class Function : public Expr
+    {
         // 1. declaration
         //    1. identifier
         //    2. return type
@@ -140,8 +162,5 @@ namespace AST
     class Assignment : public Binary
     {
     };
-
-
-    typedef std::unique_ptr<AST::Expr> ExprPtr;
 
 };

@@ -1,15 +1,20 @@
 
 
 
-FUNCTION test_func: BOOL
+FUNCTION test_func : BOOL
 
 VAR_INPUT
     aaa: INT;
     b: INT;
+    c1: INT := 1001;
 END_VAR
 
 VAR_OUTPUT
     x: INT;
+END_VAR
+
+VAR_IN_OUT
+    b1: BOOL;
 END_VAR
 
 VAR

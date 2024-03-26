@@ -15,11 +15,11 @@ namespace Lexer
         int col;
         Pos(int _line, int _col) : line(_line), col(_col){};
 
-        std::string ToStringLong()
+        std::string ToStringLong() const 
         {
             return "{" + std::to_string(line) + ":" + std::to_string(col) + "}";
         }
-        std::string ToString()
+        std::string ToString() const 
         {
             return "Ln " + std::to_string(line) + ", Col " + std::to_string(col);
         }
