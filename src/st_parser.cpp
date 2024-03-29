@@ -6,7 +6,7 @@
 #include <list>
 #include <charconv>
 
-std::vector<Error> Parse(const std::vector<Lexer::Token> &tokens)
+std::vector<Error> Parse(const std::vector<Lexer::Token> &tokens, AST::Function* function)
 {
 
     // std::list<TokenExprVariant> token_and_expr_list;
@@ -28,83 +28,14 @@ std::vector<Error> Parse(const std::vector<Lexer::Token> &tokens)
 
     // 2. Parse POUs definitions
 
-    ParseFunction(&err, tokens);
+    // AST::Function function;
+    ParseFunction(&err, tokens, function);
 
     return err;
 }
 
-bool ParseNumericLiterals(
-    std::vector<Error> *err,
-    TokenExprVariant *token_and_expr)
-{
-    if (token_and_expr == nullptr)
-    {
-        err->emplace_back(Error::ErrorType::UNNOWN,
-                          "Internal compiler error - this is caused because creator of this compiler is a moron.");
-        return false;
-    }
 
-    Lexer::Token *token = std::get_if<Lexer::Token>(token_and_expr);
-
-    if (token == nullptr)
-    {
-        return false;
-    }
-
-    if (token->type != Lexer::TokenType::NUMERIC_LITERAL)
-    {
-        return false;
-    }
-
-    // try performing conversion
-    const char *first = token->str.c_str();
-    const char *last = first + token->str.size();
-
-    bool is_float = 0;
-    // check if floating point
-
-    for (int i = 0; i < token->str.size(); i++)
-    {
-        char c = token->str[i];
-
-        is_float = (c == '.') || (c == 'E') || (c == 'e');
-        if (is_float)
-        {
-            break;
-        }
-    }
-
-    if (is_float)
-
-    { // try conversion to double
-        double number = 0;
-        std::from_chars_result result = std::from_chars(first, last, number);
-        if (result.ec == std::errc())
-        {
-            *token_and_expr = std::make_unique<AST::Literal>(AST::Literal(number));
-            return true;
-        }
-    }
-
-    else
-
-    { // try conversion to integer
-        int64_t number = 0;
-        std::from_chars_result result = std::from_chars(first, last, number);
-        if (result.ec == std::errc())
-        {
-
-            *token_and_expr = std::make_unique<AST::Literal>(AST::Literal(number));
-            return true;
-        }
-    }
-
-    err->emplace_back(Error::ErrorType::UNNOWN,
-                      "Cannot parse numeric literal + " + token->str + " + at position: " + token->pos.ToString());
-    return false;
-}
-
-bool ParseFunction(std::vector<Error> *err, const std::vector<Lexer::Token> &tokens)
+bool ParseFunction(std::vector<Error> *err, const std::vector<Lexer::Token> &tokens, AST::Function* function)
 {
 
     // first line must be:
@@ -174,10 +105,10 @@ bool ParseFunction(std::vector<Error> *err, const std::vector<Lexer::Token> &tok
     bool has_var_in_out = false;
     bool has_var = false;
 
-    std::vector<AST::Variable> var_input_vec;
-    std::vector<AST::Variable> var_output_vec;
-    std::vector<AST::Variable> var_in_out_vec;
-    std::vector<AST::Variable> var_vec;
+    std::vector<AST::VariableDefinition> var_input_vec;
+    std::vector<AST::VariableDefinition> var_output_vec;
+    std::vector<AST::VariableDefinition> var_in_out_vec;
+    std::vector<AST::VariableDefinition> var_vec;
 
     int var_begin = 4;
     while (true)
@@ -220,7 +151,7 @@ bool ParseFunction(std::vector<Error> *err, const std::vector<Lexer::Token> &tok
             // parse VAR body;
             std::vector<Lexer::Token> var_body{&tokens[var_begin + 1], &tokens[var_end]};
 
-            std::vector<AST::Variable> var_list = ParseVarList(err, var_body);
+            std::vector<AST::VariableDefinition> var_list = ParseVarList(err, var_body);
 
             if (tokens[var_begin].type == Lexer::TokenType::VAR_INPUT)
                 var_input_vec.insert(var_input_vec.end(), var_list.begin(), var_list.end());
@@ -250,7 +181,7 @@ bool ParseFunction(std::vector<Error> *err, const std::vector<Lexer::Token> &tok
 
     {
         // check for duplicated variable names
-        std::vector<AST::Variable> all_var_vec;
+        std::vector<AST::VariableDefinition> all_var_vec;
         all_var_vec.insert(all_var_vec.end(), var_input_vec.begin(), var_input_vec.end());
         all_var_vec.insert(all_var_vec.end(), var_output_vec.begin(), var_output_vec.end());
         all_var_vec.insert(all_var_vec.end(), var_in_out_vec.begin(), var_in_out_vec.end());
@@ -288,15 +219,27 @@ bool ParseFunction(std::vector<Error> *err, const std::vector<Lexer::Token> &tok
     // TODO parse function body
     std::vector<Lexer::Token> function_body{&tokens[var_begin], &tokens.back()};
 
+    AST::StatementList stmt_list;
+    ParseStatementList(err, function_body, &stmt_list);
+
+    AST::Function function;
+
+    function.name = function_name;
+    function.var_input = var_input_vec;
+    function.var_output = var_output_vec;
+    function.var_inout = var_in_out_vec;
+    function.var_temp = var_vec;
+    function.statements = stmt_list;
+
     return true;
 }
 
-std::vector<AST::Variable> ParseVarList(
+std::vector<AST::VariableDefinition> ParseVarList(
     std::vector<Error> *err,
     const std::vector<Lexer::Token> &tokens)
 {
 
-    std::vector<AST::Variable> variable_list;
+    std::vector<AST::VariableDefinition> variable_list;
 
     // every single line looks like that:
     //
@@ -320,8 +263,8 @@ std::vector<AST::Variable> ParseVarList(
             semicolon_index = tokens.size() - 1;
         }
 
-        std::vector<Lexer::Token> var_decl{&tokens[index], &tokens[semicolon_index + 1]};
-        AST::Variable variable;
+        std::vector<Lexer::Token> var_decl{&tokens[index], &tokens[semicolon_index] + 1 };
+        AST::VariableDefinition variable;
 
         if (ParseVarDeclaration(err, var_decl, &variable))
         {
@@ -344,7 +287,7 @@ std::vector<AST::Variable> ParseVarList(
 bool ParseVarDeclaration(
     std::vector<Error> *err,
     const std::vector<Lexer::Token> &tokens,
-    AST::Variable *variable)
+    AST::VariableDefinition *variable)
 {
 
     if (variable == nullptr)
@@ -395,7 +338,7 @@ bool ParseVarDeclaration(
 
         if (tokens[3].type == Lexer::TokenType::SEMICOLON)
         {
-            (*variable) = AST::Variable(tokens[0].str, tokens[2].str);
+            (*variable) = AST::VariableDefinition(tokens[0].str, tokens[2].str);
             return true;
         }
 
@@ -416,7 +359,7 @@ bool ParseVarDeclaration(
         // TODO: parse expression
         std::vector<Lexer::Token> assigned_expr{&tokens[4], &tokens.back()};
 
-        (*variable) = AST::Variable(tokens[0].str, tokens[2].str);
+        (*variable) = AST::VariableDefinition(tokens[0].str, tokens[2].str);
         return true;
     }
 

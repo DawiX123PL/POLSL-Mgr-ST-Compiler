@@ -15,8 +15,8 @@ int main(int argc, char **argv)
         PrintArgs(args);
     }
 
-    // std::string file_name = "./test/function1.st";
-    std::string file_name = "../test/function1.st";
+    std::string file_name = "./test/function1.st";
+    //std::string file_name = "../test/function1.st";
     std::string file_content;
     bool isok = ReadFileContent(file_name, &file_content);
 
@@ -46,6 +46,7 @@ int main(int argc, char **argv)
             std::cout << Console::FgBrightRed("[Error]: ") << err[i].ToString() << "\n";
         }
 
+        
 
     }
 }

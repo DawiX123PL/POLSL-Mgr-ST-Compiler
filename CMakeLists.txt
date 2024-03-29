@@ -15,7 +15,9 @@ set(SOURCES
     src/st_lexer.cpp       
     src/st_lexer.hpp       
     src/st_parser.cpp      
-    src/st_parser.hpp      
+    src/st_parser.hpp
+    src/st_expression_parser.hpp
+    src/st_expression_parser.cpp
 )
 
 
