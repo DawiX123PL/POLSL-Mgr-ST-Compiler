@@ -173,6 +173,10 @@ namespace AST
         std::vector<VariableDefinition> var_inout;
         std::vector<VariableDefinition> var_temp;
         StatementList statements;
+
+        void Evaluate(){
+            
+        };
     };
 
     // class UnaryPlus : public Unnary

@@ -222,14 +222,14 @@ bool ParseFunction(std::vector<Error> *err, const std::vector<Lexer::Token> &tok
     AST::StatementList stmt_list;
     ParseStatementList(err, function_body, &stmt_list);
 
-    AST::Function function;
+    // AST::Function function;
 
-    function.name = function_name;
-    function.var_input = var_input_vec;
-    function.var_output = var_output_vec;
-    function.var_inout = var_in_out_vec;
-    function.var_temp = var_vec;
-    function.statements = stmt_list;
+    function->name = function_name;
+    function->var_input = var_input_vec;
+    function->var_output = var_output_vec;
+    function->var_inout = var_in_out_vec;
+    function->var_temp = var_vec;
+    function->statements = stmt_list;
 
     return true;
 }

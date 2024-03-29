@@ -8,13 +8,9 @@
 
 
 
-std::vector<Error> Parse(const std::vector<Lexer::Token> &tokens);
+std::vector<Error> Parse(const std::vector<Lexer::Token> &tokens, AST::Function* function);
 
-// bool ParseNumericLiterals(
-//     std::vector<Error> *err,
-//     TokenExprVariant *token_and_expr);
-
-bool ParseFunction(std::vector<Error> *err, const std::vector<Lexer::Token> &tokens);
+bool ParseFunction(std::vector<Error> *err, const std::vector<Lexer::Token> &tokens, AST::Function* function);
 
 std::vector<AST::VariableDefinition> ParseVarList(
     std::vector<Error> *err,

@@ -38,15 +38,16 @@ int main(int argc, char **argv)
             std::cout << Console::FgBrightRed("[Error]: ") << err[i].ToString() << "\n";
         }
 
+        AST::Function function;
 
-        err = Parse(token_list);
+        err = Parse(token_list, &function);
 
         for (int i = 0; i < err.size(); i++)
         {
             std::cout << Console::FgBrightRed("[Error]: ") << err[i].ToString() << "\n";
         }
 
-        
+        function.Evaluate();
 
     }
 }
