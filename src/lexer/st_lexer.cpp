@@ -1,5 +1,5 @@
 #include "st_lexer.hpp"
-#include "error.hpp"
+#include "../error.hpp"
 
 #include <string>
 #include <vector>

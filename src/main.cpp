@@ -1,9 +1,9 @@
 #include <string>
 #include <iostream>
-#include "st_lexer.hpp"
-#include "file_utils.hpp"
-#include "argument_parser.hpp"
-#include "st_parser.hpp"
+#include "lexer/st_lexer.hpp"
+#include "file/file_utils.hpp"
+#include "console/argument_parser.hpp"
+#include "parser/st_parser.hpp"
 
 int main(int argc, char **argv)
 {

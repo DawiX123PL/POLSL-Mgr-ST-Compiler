@@ -1,7 +1,7 @@
 #include "st_expression_parser.hpp"
 
-#include "ast.hpp"
-#include "st_lexer.hpp"
+#include "../ast.hpp"
+#include "../lexer/st_lexer.hpp"
 #include <variant>
 #include <vector>
 #include <list>

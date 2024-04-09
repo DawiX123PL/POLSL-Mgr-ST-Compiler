@@ -1,7 +1,7 @@
 #pragma once
 
 #include <string>
-#include "console_color.hpp"
+#include "console/color.hpp"
 
 class Error
 {

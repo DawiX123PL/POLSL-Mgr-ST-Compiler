@@ -4,7 +4,7 @@
 #include <string>
 #include <inttypes.h>
 #include <utility>
-#include "error.hpp"
+#include "../error.hpp"
 
 namespace Lexer
 {

@@ -1,4 +1,4 @@
-#include "console_color.hpp"
+#include "color.hpp"
 #include <string>
 
 namespace Console

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "error.hpp"
-#include "st_lexer.hpp"
-#include "ast.hpp"
+#include "../error.hpp"
+#include "../lexer/st_lexer.hpp"
+#include "../ast.hpp"
 #include <variant>
 #include <list>
 
@@ -14,7 +14,7 @@ class TokenExprVariant
 
 public:
     TokenExprVariant(Lexer::Token _token) : token(_token), expr(nullptr), is_token(true) {}
-    TokenExprVariant(AST::ExprPtr _expr) : token(), expr(expr), is_token(false) {}
+    TokenExprVariant(AST::ExprPtr _expr) : token(), expr(_expr), is_token(false) {}
 
     Lexer::Token *GetToken()
     {

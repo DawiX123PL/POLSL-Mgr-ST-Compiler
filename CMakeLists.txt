@@ -3,21 +3,22 @@ project(st_compiler)
 
 # source files 
 set(SOURCES   
-    src/argument_parser.cpp
-    src/argument_parser.hpp
-    src/ast.hpp
-    src/console_color.cpp  
-    src/console_color.hpp  
-    src/error.hpp
-    src/file_utils.cpp     
-    src/file_utils.hpp     
+    src/console/argument_parser.cpp 
+    src/console/argument_parser.hpp 
+    src/console/color.cpp 
+    src/console/color.hpp
+    src/file/file_utils.cpp 
+    src/file/file_utils.hpp
+    src/lexer/st_lexer.cpp 
+    src/lexer/st_lexer.hpp
+    src/parser/llvm_codegen.hpp 
+    src/parser/st_expression_parser.cpp 
+    src/parser/st_expression_parser.hpp 
+    src/parser/st_parser.cpp 
+    src/parser/st_parser.hpp
+    src/ast.hpp 
+    src/error.hpp 
     src/main.cpp
-    src/st_lexer.cpp       
-    src/st_lexer.hpp       
-    src/st_parser.cpp      
-    src/st_parser.hpp
-    src/st_expression_parser.hpp
-    src/st_expression_parser.cpp
 )
 
 

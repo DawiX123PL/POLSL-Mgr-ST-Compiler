@@ -1,7 +1,7 @@
 #pragma once
-#include "error.hpp"
-#include "st_lexer.hpp"
-#include "ast.hpp"
+#include "../error.hpp"
+#include "../lexer/st_lexer.hpp"
+#include "../ast.hpp"
 #include "st_expression_parser.hpp"
 #include <variant>
 #include <list>
