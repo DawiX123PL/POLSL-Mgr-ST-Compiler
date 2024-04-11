@@ -383,4 +383,6 @@ namespace Lexer
 
     std::vector<Error> Tokenize(const std::string &code, std::vector<Token> *tokens);
 
+    typedef std::vector<Token> TokenList;
+
 };

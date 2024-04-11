@@ -4,51 +4,41 @@
 #include <inttypes.h>
 #include <string>
 #include <vector>
+#include <tuple>
 
 namespace AST
 {
 
-    enum class Type
+    enum class NumberSignes
     {
-        NONE, //
-
-        BOOL,
-        INT,
-        REAL,
+        SIGNED,
+        UNSIGNED,
     };
 
-    enum class Operation
+    enum class NumberType
     {
-        UNARY_PLUS,
-        UNARY_MINUS,
-        BOOLEAN_NOT,
-        EXPONENTIATION,
-        MULTIPLY,
-        DIVIDE,
-        MODULO,
-        ADD,
-        SUBTRACT,
-        GREATER_THAN,
-        LESS_THAN,
-        GREATER_OR_EQUAL,
-        LESS_OR_EQUAL,
-        EQUALITY,
-        INEQUALITY,
-        BOOLEAN_AND,
-        BOOLEAN_OR,
-        BOOLEAN_XOR,
-        ASSIGNMENT,
-        DEREFERENCE,
+        SPECIFIC,
+        INTEGER_LIKE,
+        FLOATING_LIKE,
     };
+
+    // std::string build_in_types[] = {
+    //     {"BOOL"},
+    //     {"SINT"},
+    //     {"INT"},
+    //     {"DINT"},
+    //     {"LINT"},
+    //     {"USINT"},
+    //     {"UINT"},
+    //     {"UDINT"},
+    //     {"ULINT"},
+    //     {"REAL"},
+    //     {"LREAL"},
+    // };
 
     // abstract classes
     class Expr
     {
-    protected:
-        Type return_type;
-
-        Expr() : return_type(Type::NONE) {}
-        Expr(Type _return_type) : return_type(_return_type) {}
 
     public:
         virtual void Evaluate() = 0;
@@ -59,182 +49,133 @@ namespace AST
     class Unnary : public Expr
     {
     protected:
-        Operation operation;
         ExprPtr expr;
 
     public:
-        Unnary(Operation op, ExprPtr ex) : operation(op), expr(ex) {}
-        void Evaluate()
-        {
-        }
+        Unnary(ExprPtr ex) : expr(ex) {}
     };
 
     class Binary : public Expr
     {
     protected:
-        Operation operation;
         ExprPtr l_expr;
         ExprPtr r_expr;
 
     public:
-        Binary(Operation op, ExprPtr l_ex, ExprPtr r_ex) : operation(op), l_expr(l_ex), r_expr(r_ex) {}
-        void Evaluate()
-        {
-        }
+        Binary(ExprPtr l_ex, ExprPtr r_ex) : l_expr(l_ex), r_expr(r_ex) {}
     };
 
     class FunctionCall : public Expr
     {
     };
 
-    //
-    class Literal : public Expr
+    class LiteralAmbiguous : public Expr
     {
-        double d_value;
-        int64_t i_value;
-
-    public:
-        Literal(double value) : Expr(Type::REAL), d_value(value), i_value(value) {}
-        Literal(int64_t value) : Expr(Type::INT), d_value(value), i_value(value) {}
-
-        void Evaluate(){};
     };
 
-    class VariableDefinition
+    class LiteralSpecific : public Expr
     {
-        std::string name;
         std::string type;
-        ExprPtr initial_value;
+
+        int64_t value_i;
+        uint64_t value_ui;
+        double value_d;
 
     public:
-        const std::string &GetName() { return name; }
+        LiteralSpecific(std::string _type, int64_t val) : type(_type), value_i(val), value_ui(val), value_d(val) {}
+        LiteralSpecific(std::string _type, uint64_t val) : type(_type), value_i(val), value_ui(val), value_d(val) {}
+        LiteralSpecific(std::string _type, double val) : type(_type), value_i(val), value_ui(val), value_d(val) {}
 
-        VariableDefinition()
-            : name(),
-              type(),
-              initial_value(nullptr) {}
+        static ExprPtr Create_BOOL(bool val) { return std::make_shared<LiteralSpecific>("BOOL", (uint64_t)val); }
+        static ExprPtr Create_SINT(int8_t val) { return std::make_shared<LiteralSpecific>("SINT", (int64_t)val); }
+        static ExprPtr Create_INT(int16_t val) { return std::make_shared<LiteralSpecific>("INT", (int64_t)val); }
+        static ExprPtr Create_DINT(int32_t val) { return std::make_shared<LiteralSpecific>("DINT", (int64_t)val); }
+        static ExprPtr Create_LINT(int64_t val) { return std::make_shared<LiteralSpecific>("LINT", (int64_t)val); }
+        static ExprPtr Create_USINT(uint8_t val) { return std::make_shared<LiteralSpecific>("USINT", (uint64_t)val); }
+        static ExprPtr Create_UINT(uint16_t val) { return std::make_shared<LiteralSpecific>("UINT", (uint64_t)val); }
+        static ExprPtr Create_UDINT(uint32_t val) { return std::make_shared<LiteralSpecific>("UDINT", (uint64_t)val); }
+        static ExprPtr Create_ULINT(uint64_t val) { return std::make_shared<LiteralSpecific>("ULINT", (uint64_t)val); }
+        static ExprPtr Create_REAL(float val) { return std::make_shared<LiteralSpecific>("REAL", (double)val); }
+        static ExprPtr Create_LREAL(double val) { return std::make_shared<LiteralSpecific>("LREAL", (double)val); }
 
-        VariableDefinition(std::string _name, std::string _type)
-            : name(_name),
-              type(_type),
-              initial_value(nullptr) {}
+        void Evaluate() override {}
+    };
 
-        VariableDefinition(std::string _name, std::string _type, ExprPtr _initial)
-            : name(_name),
-              type(_type),
-              initial_value(_initial) {}
+    class VariableDeclaration
+    {
     };
 
     class Variable : public Expr
     {
-        std::string name;
-
-        void Evaluate(){};
-
-    public:
-        Variable(std::string _name)
-            : name(_name) {}
-    };
-
-    class Statement
-    {
-        void Evaluate(){};
-    };
-
-    typedef std::shared_ptr<Statement> StatementPtr;
-    typedef std::vector<StatementPtr> StatementList;
-
-    class IfStatement : public Statement
-    {
-    };
-
-    class AssignStatement : public Statement
-    {
-        ExprPtr variable;
-        ExprPtr expression;
-
-    public:
-        AssignStatement(ExprPtr var, ExprPtr expr): variable(var), expression(expr){}
     };
 
     class Function
     {
-        // 1. declaration
-        //    1. identifier
-        //    2. return type
-        //    3. VAR_INPUT VAR_OUTPUT VAR_IN_OUT VAR_TEMP
-        // 2. definition
-        //    1. statement list
-    public:
         std::string name;
-        VariableDefinition var_return;
-        std::vector<VariableDefinition> var_input;
-        std::vector<VariableDefinition> var_output;
-        std::vector<VariableDefinition> var_inout;
-        std::vector<VariableDefinition> var_temp;
-        StatementList statements;
-
-        void Evaluate(){
-            
-        };
+        VariableDeclaration var_return;
+        std::vector<VariableDeclaration> var_input;
+        std::vector<VariableDeclaration> var_output;
+        std::vector<VariableDeclaration> var_inout;
+        std::vector<VariableDeclaration> var_temp;
+        // StatementList statements;
     };
 
-    // class UnaryPlus : public Unnary
-    // {
-    // };
-    // class UnaryMinus : public Unnary
-    // {
-    // };
-    // class BooleanNOT : public Unnary
-    // {
-    // };
-    // class Exponentiation : public Binary
-    // {
-    // };
-    // class Multiply : public Binary
-    // {
-    // };
-    // class Divide : public Binary
-    // {
-    // };
-    // class Modulo : public Binary
-    // {
-    // };
-    // class Add : public Binary
-    // {
-    // };
-    // class Subtract : public Binary
-    // {
-    // };
-    // class GreaterThan : public Binary
-    // {
-    // };
-    // class LessThan : public Binary
-    // {
-    // };
-    // class GreaterOrEqual : public Binary
-    // {
-    // };
-    // class LessOrEqual : public Binary
-    // {
-    // };
-    // class Equality : public Binary
-    // {
-    // };
-    // class Inequality : public Binary
-    // {
-    // };
-    // class BooleanAND : public Binary
-    // {
-    // };
-    // class BooleanOR : public Binary
-    // {
-    // };
-    // class BooleanXOR : public Binary
-    // {
-    // };
-    // class Assignment : public Binary
-    // {
-    // };
+    class UnaryPlus : public Unnary
+    {
+    };
+    class UnaryMinus : public Unnary
+    {
+    };
+    class BooleanNOT : public Unnary
+    {
+    };
+    class Exponentiation : public Binary
+    {
+    };
+    class Multiply : public Binary
+    {
+    };
+    class Divide : public Binary
+    {
+    };
+    class Modulo : public Binary
+    {
+    };
+    class Add : public Binary
+    {
+    };
+    class Subtract : public Binary
+    {
+    };
+    class GreaterThan : public Binary
+    {
+    };
+    class LessThan : public Binary
+    {
+    };
+    class GreaterOrEqual : public Binary
+    {
+    };
+    class LessOrEqual : public Binary
+    {
+    };
+    class Equality : public Binary
+    {
+    };
+    class Inequality : public Binary
+    {
+    };
+    class BooleanAND : public Binary
+    {
+    };
+    class BooleanOR : public Binary
+    {
+    };
+    class BooleanXOR : public Binary
+    {
+    };
+    class Assignment : public Binary
+    {
+    };
 
 };

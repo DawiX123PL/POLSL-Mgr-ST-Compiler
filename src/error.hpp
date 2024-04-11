@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 #include "console/color.hpp"
 
 class Error
@@ -54,3 +55,7 @@ public:
         }
     }
 };
+
+
+typedef std::vector<Error> ErrorList;
+

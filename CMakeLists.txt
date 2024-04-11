@@ -11,11 +11,8 @@ set(SOURCES
     src/file/file_utils.hpp
     src/lexer/st_lexer.cpp 
     src/lexer/st_lexer.hpp
-    src/parser/llvm_codegen.hpp 
-    src/parser/st_expression_parser.cpp 
-    src/parser/st_expression_parser.hpp 
-    src/parser/st_parser.cpp 
-    src/parser/st_parser.hpp
+    src/parser/parser.cpp 
+    src/parser/parser.hpp
     src/ast.hpp 
     src/error.hpp 
     src/main.cpp

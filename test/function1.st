@@ -18,11 +18,12 @@ VAR_IN_OUT
 END_VAR
 
 VAR
-    c: INT := 1001;
+    c: INT := 16#1001E10;
 END_VAR
 
 test_func := 0.123;
 x := - a + b + c;
+
 RETURN ;
 
 END_FUNCTION
