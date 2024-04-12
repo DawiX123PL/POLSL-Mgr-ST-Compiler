@@ -6,7 +6,7 @@ FUNCTION test_func : BOOL
 VAR_INPUT
     aaa: INT;
     b: INT;
-    c1: INT := 1001;
+    c1: INT := INT#1001;
 END_VAR
 
 VAR_OUTPUT
@@ -18,13 +18,12 @@ VAR_IN_OUT
 END_VAR
 
 VAR
-    c: INT := 16#1001E10;
+    c: INT := INT#16#1001E10;
 END_VAR
 
-test_func := 0.123;
+test_func := REAL#0.123;
 x := - a + b + c;
 
-RETURN ;
 
 END_FUNCTION
 

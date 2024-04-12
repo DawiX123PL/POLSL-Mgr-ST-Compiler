@@ -46,7 +46,7 @@ int main(int argc, char **argv)
     // AST::Function function;
 
     err.clear();
-    Parse(err, token_list);
+    AST::POUlist pou_list = Parse(err, token_list);
 
     for (int i = 0; i < err.size(); i++)
     {

@@ -5,21 +5,36 @@
 #include "../lexer/st_lexer.hpp"
 #include "../ast.hpp"
 
-void Parse(ErrorList &err, Lexer::TokenList tokens);
-void ParseFunction(ErrorList &err, Lexer::TokenList tokens);
+AST::POUlist Parse(ErrorList &err, Lexer::TokenList tokens);
+AST::POUPtr ParseFunction(ErrorList &err, Lexer::TokenList tokens);
 void ParseFunctionBlock(ErrorList &err, Lexer::TokenList tokens);
 void ParseProgram(ErrorList &err, Lexer::TokenList tokens);
 void ParseFunctionBlock(ErrorList &err, Lexer::TokenList tokens);
 void ParseProgram(ErrorList &err, Lexer::TokenList tokens);
-void ParseVarInput(ErrorList &err, Lexer::TokenList tokens);
-void ParseVarOutput(ErrorList &err, Lexer::TokenList tokens);
-void ParseVarInOut(ErrorList &err, Lexer::TokenList tokens);
-void ParseVar(ErrorList &err, Lexer::TokenList tokens);
-void ParseVarBody(ErrorList &err, Lexer::TokenList tokens);
 
-void ParseExpression(ErrorList &err, const Lexer::TokenList &tokens);
+std::vector<AST::VariableDeclaration> ParseVarInput(ErrorList &err, Lexer::TokenList tokens);
+std::vector<AST::VariableDeclaration> ParseVarOutput(ErrorList &err, Lexer::TokenList tokens);
+std::vector<AST::VariableDeclaration> ParseVarInOut(ErrorList &err, Lexer::TokenList tokens);
+std::vector<AST::VariableDeclaration> ParseVar(ErrorList &err, Lexer::TokenList tokens);
+std::vector<AST::VariableDeclaration> ParseVarBody(ErrorList &err, Lexer::TokenList tokens);
 
-void SplitNumericLiteral(ErrorList& err, std::string token, std::string *type, std::string *base_str, std::string *number_str);
+AST::StatementList ParsePOUBody(ErrorList &err, Lexer::TokenList tokens);
+
+AST::StatementPtr ParseStatement(ErrorList &err, const Lexer::TokenList &tokens);
+
+AST::ExprPtr ParseExpression(ErrorList &err, const Lexer::TokenList &tokens);
+
+AST::ExprPtr ParseVariable(ErrorList &err, Lexer::Token token);
+
+void SplitNumericLiteral(
+    ErrorList &err, 
+    std::string token, 
+    std::string *type, 
+    std::string *base_str, 
+    std::string *number_str,
+    bool* has_type,
+    bool* has_base
+    );
 
 template <typename T>
 void ParseInteger(ErrorList &err, std::string str, int base, T *result);
