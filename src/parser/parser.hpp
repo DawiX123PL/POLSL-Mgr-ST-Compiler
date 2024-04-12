@@ -3,7 +3,7 @@
 #include <vector>
 #include "../error.hpp"
 #include "../lexer/st_lexer.hpp"
-#include "../ast.hpp"
+#include "../ast/ast.hpp"
 
 AST::POUlist Parse(ErrorList &err, Lexer::TokenList tokens);
 AST::POUPtr ParseFunction(ErrorList &err, Lexer::TokenList tokens);

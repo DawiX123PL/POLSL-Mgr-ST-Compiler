@@ -4,7 +4,7 @@
 #include <cassert>
 #include <variant>
 #include <list>
-#include "../ast.hpp"
+#include "../ast/ast.hpp"
 #include <charconv>
 #include <inttypes.h>
 
@@ -750,7 +750,6 @@ AST::ExprPtr ParseExpression(ErrorList &err, const Lexer::TokenList &tokens)
     // step 2 parse operators
     for (int precedence = 11; precedence > 0; precedence--)
     {
-        // TODO:
         for (int index = 0; index < token_expr_vec.size(); index++)
         {
             // check if token_expr_vec[i] is token and not an expression
@@ -899,7 +898,7 @@ void SplitNumericLiteral(
         return;
     }
 
-    // TODO: error case
+    // error case
     *type = "";
     *base_str = "";
     *number_str = "";
