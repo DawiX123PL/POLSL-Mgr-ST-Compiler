@@ -106,52 +106,28 @@ AST::POUPtr ParseFunction(ErrorList &err, Lexer::TokenList tokens)
     // FUNCTION function_name : return_type
 
     // FUNTION
-    if (tokens.size() < 1)
-    {
-        err.emplace_back("Missing FUNCTION keyword");
-        return nullptr;
-    }
-
-    if (tokens[0].type != Lexer::TokenType::FUNCTION)
+    if (!IsTokenInPosition(tokens, 0, Lexer::TokenType::FUNCTION))
     {
         err.emplace_back("Expected FUNCTION keyword");
         return nullptr;
     }
 
     // function_name
-    if (tokens.size() < 2)
-    {
-        err.emplace_back("Missing Function name");
-        return nullptr;
-    }
-
-    if (tokens[1].type != Lexer::TokenType::IDENTIFIER)
+    if (!IsTokenInPosition(tokens, 1, Lexer::TokenType::IDENTIFIER))
     {
         err.emplace_back("Expected identifier (specifying function name)");
         return nullptr;
     }
 
     // :
-    if (tokens.size() < 3)
-    {
-        err.emplace_back("Missing COLON");
-        return nullptr;
-    }
-
-    if (tokens[2].type != Lexer::TokenType::COLON)
+    if (!IsTokenInPosition(tokens, 2, Lexer::TokenType::COLON))
     {
         err.emplace_back("Expected COLON");
         return nullptr;
     }
 
     // return_type
-    if (tokens.size() < 4)
-    {
-        err.emplace_back("Missing Data Type");
-        return nullptr;
-    }
-
-    if (tokens[3].type != Lexer::TokenType::IDENTIFIER)
+    if (!IsTokenInPosition(tokens, 3, Lexer::TokenType::IDENTIFIER))
     {
         err.emplace_back("Expected Identifier (specifying return type)");
         return nullptr;
@@ -165,7 +141,6 @@ AST::POUPtr ParseFunction(ErrorList &err, Lexer::TokenList tokens)
     }
 
     //
-
     AST::Function function;
     function.name = tokens[1].str;
     ;
@@ -324,13 +299,7 @@ std::vector<AST::VariableDeclaration> ParseVarInput(ErrorList &err, Lexer::Token
     }
 
     // First token must be VAR_INPUT
-    if (tokens.size() < 1)
-    {
-        err.emplace_back("Missing VAR_INPUT keyword");
-        return {};
-    }
-
-    if (tokens[0].type != Lexer::TokenType::VAR_INPUT)
+    if (!IsTokenInPosition(tokens, 0, Lexer::TokenType::VAR_INPUT))
     {
         err.emplace_back("Expected VAR_INPUT keyword");
         return {};
@@ -355,13 +324,7 @@ std::vector<AST::VariableDeclaration> ParseVarOutput(ErrorList &err, Lexer::Toke
     }
 
     // First token must be VAR_OUTPUT
-    if (tokens.size() < 1)
-    {
-        err.emplace_back("Missing VAR_OUTPUT keyword");
-        return {};
-    }
-
-    if (tokens[0].type != Lexer::TokenType::VAR_OUTPUT)
+    if (!IsTokenInPosition(tokens, 0, Lexer::TokenType::VAR_OUTPUT))
     {
         err.emplace_back("Expected VAR_OUTPUT keyword");
         return {};
@@ -386,13 +349,7 @@ std::vector<AST::VariableDeclaration> ParseVarInOut(ErrorList &err, Lexer::Token
     }
 
     // First token must be VAR_IN_OUT
-    if (tokens.size() < 1)
-    {
-        err.emplace_back("Missing VAR_IN_OUT keyword");
-        return {};
-    }
-
-    if (tokens[0].type != Lexer::TokenType::VAR_IN_OUT)
+    if (!IsTokenInPosition(tokens, 0, Lexer::TokenType::VAR_IN_OUT))
     {
         err.emplace_back("Expected VAR_IN_OUT keyword");
         return {};
@@ -417,13 +374,7 @@ std::vector<AST::VariableDeclaration> ParseVar(ErrorList &err, Lexer::TokenList 
     }
 
     // First token must be VAR
-    if (tokens.size() < 1)
-    {
-        err.emplace_back("Missing VAR keyword");
-        return {};
-    }
-
-    if (tokens[0].type != Lexer::TokenType::VAR)
+    if (!IsTokenInPosition(tokens, 0, Lexer::TokenType::VAR))
     {
         err.emplace_back("Expected VAR keyword");
         return {};
@@ -442,13 +393,123 @@ std::vector<AST::VariableDeclaration> ParseVar(ErrorList &err, Lexer::TokenList 
 
 ///////////////////////////
 
+bool ParseVarDeclaration(ErrorList &err, Lexer::TokenList tokens, AST::VariableDeclaration *var)
+{
+    // ;
+    // name : data_type;
+    // name : datatype := expr;
+
+    if (tokens.size() == 0)
+    {
+        // no code emited
+        return {};
+    }
+
+    if (tokens.size() == 1)
+    {
+        if (tokens[0].type == Lexer::TokenType::SEMICOLON)
+        {
+            // empty variable declaration
+            // no error
+            // no code emited
+            return false;
+        }
+    }
+
+    if (!IsIndexInBounds(tokens, 0) && tokens[0].type != Lexer::TokenType::IDENTIFIER)
+    {
+        err.emplace_back("Expected Identifier (variable name)");
+        return false;
+    }
+
+    if (!IsIndexInBounds(tokens, 1) && tokens[1].type != Lexer::TokenType::COLON)
+    {
+        err.emplace_back("Expected : ");
+        return false;
+    }
+
+    if (!IsIndexInBounds(tokens, 2) && tokens[2].type != Lexer::TokenType::IDENTIFIER)
+    {
+        err.emplace_back("Expected Identifier (variable data type)");
+        return false;
+    }
+
+    std::string name = tokens[0].str;
+    std::string data_type = tokens[2].str;
+
+    // there should be := or ;
+
+    if (!IsIndexInBounds(tokens, 3) &&
+        (tokens[3].type != Lexer::TokenType::ASSIGN ||
+         tokens[3].type != Lexer::TokenType::SEMICOLON))
+    {
+        err.emplace_back("Expected Identifier (variable data type)");
+        return false;
+    }
+
+    if (IsIndexInBounds(tokens, 3) && tokens[3].type == Lexer::TokenType::SEMICOLON)
+    {
+        *var = AST::VariableDeclaration(name, data_type);
+        return true;
+    }
+
+    if (IsIndexInBounds(tokens, 3) && tokens[3].type == Lexer::TokenType::ASSIGN)
+    {
+
+        int semicolon_pos = FindToken(tokens, 3, Lexer::TokenType::SEMICOLON);
+        if (semicolon_pos == -1)
+        {
+            err.emplace_back("Missing semicolon at the end of variable declaration");
+            return false;
+        }
+
+        Lexer::TokenList expr_tokens = SubVector(tokens, 4, semicolon_pos - 1);
+        AST::ExprPtr initial_value = ParseExpression(err, expr_tokens);
+
+        *var = AST::VariableDeclaration(name, data_type, initial_value);
+        return true;
+    }
+
+    err.emplace_back("Internal compiler error");
+    return false;
+}
+
 std::vector<AST::VariableDeclaration> ParseVarBody(ErrorList &err, Lexer::TokenList tokens)
 {
     // name : data_type;
     // name : datatype := expr;
 
+    if (tokens.size() == 0)
+    {
+        // no code emited
+        return {};
+    }
+
+    std::vector<AST::VariableDeclaration> variables;
+
+    int begin_var_pos = 0;
+    while (begin_var_pos < tokens.size())
+    {
+        int semicolon_pos = FindToken(tokens, begin_var_pos, Lexer::TokenType::SEMICOLON);
+
+        if (semicolon_pos == -1)
+        {
+            err.emplace_back("Missing semicolon at end of variable declaration");
+            break;
+        }
+
+        Lexer::TokenList var_tokens = SubVector(tokens, begin_var_pos, semicolon_pos);
+
+        AST::VariableDeclaration var;
+        if (ParseVarDeclaration(err, var_tokens, &var))
+        {
+            variables.push_back(var);
+        }
+        begin_var_pos = semicolon_pos + 1;
+    }
+
     err.emplace_back("Parsing Var not yet implemented");
-    return {};
+    return variables;
 }
 
 /////////////////////////////////
@@ -642,14 +703,15 @@ AST::ExprPtr ParseOperator(AST::ExprPtr left, AST::ExprPtr right, Lexer::TokenTy
     return expr;
 }
 
-template <typename T_vec>
-bool IsIndexInBounds(int index, T_vec vec)
-{
-    return (index >= 0) && (index < vec.size());
-}
-
 AST::ExprPtr ParseExpression(ErrorList &err, const Lexer::TokenList &tokens)
 {
+
+    if (tokens.size() == 0)
+    {
+        err.emplace_back("Empty Expression");
+        return nullptr;
+    }
+
     // step 1 copy to variant table
     std::vector<std::variant<Lexer::Token, AST::ExprPtr>> token_expr_vec;
     for (int i = 0; i < tokens.size(); i++)
@@ -700,14 +762,14 @@ AST::ExprPtr ParseExpression(ErrorList &err, const Lexer::TokenList &tokens)
             AST::ExprPtr right = nullptr;
 
             // get left and right side of operator
-            if (IsIndexInBounds(index - 1, token_expr_vec))
+            if (IsIndexInBounds(token_expr_vec, index - 1))
             {
                 AST::ExprPtr *tmp = nullptr;
                 tmp = std::get_if<AST::ExprPtr>(&token_expr_vec[index - 1]);
                 if (tmp != nullptr)
                     left = *tmp;
             }
-            if (IsIndexInBounds(index + 1, token_expr_vec))
+            if (IsIndexInBounds(token_expr_vec, index + 1))
             {
                 AST::ExprPtr *tmp = nullptr;
                 tmp = std::get_if<AST::ExprPtr>(&token_expr_vec[index + 1]);
@@ -1132,4 +1194,22 @@ std::pair<int, int> FindTokenPairWithNeasting(const Lexer::TokenList &tokens, Le
     }
 
     return {first_pos, second_pos};
+}
+
+template <typename T_vec>
+bool IsIndexInBounds(T_vec vec, int index)
+{
+    return (index >= 0) && (index < vec.size());
+}
+
+bool IsTokenInPosition(const Lexer::TokenList &tokens, int index, Lexer::TokenType type)
+{
+    if (index >= tokens.size())
+        return false;
+    if (index < 0)
+        return false;
+    if (tokens[index].type != type)
+        return false;
+
+    return true;
 }

@@ -104,10 +104,12 @@ namespace AST
     {
         std::string name;
         std::string type;
+        ExprPtr initial_value;
 
     public:
-        VariableDeclaration() : name(), type() {}
-        VariableDeclaration(std::string _name, std::string _type) : name(_name), type(_type) {}
+        VariableDeclaration() : name(), type(), initial_value(nullptr) {}
+        VariableDeclaration(std::string _name, std::string _type) : name(_name), type(_type), initial_value(nullptr) {}
+        VariableDeclaration(std::string _name, std::string _type, ExprPtr _initial_value) : name(_name), type(_type), initial_value(_initial_value) {}
     };
 
     class Variable : public Expr
@@ -163,8 +165,9 @@ namespace AST
         void Evaluate() {}
     };
 
-    class POU{
-            public:
+    class POU
+    {
+    public:
         virtual void Evaluate() = 0;
     };
 
@@ -174,7 +177,6 @@ namespace AST
     class Function : public POU
     {
     public:
-
         std::string name;
         VariableDeclaration var_return;
         std::vector<VariableDeclaration> var_input;
@@ -182,9 +184,9 @@ namespace AST
         std::vector<VariableDeclaration> var_inout;
         std::vector<VariableDeclaration> var_temp;
         StatementList statement_list;
-        
+
         Function(){};
-        static POUPtr Make(Function fn){ return std::make_shared<Function>(fn);}
+        static POUPtr Make(Function fn) { return std::make_shared<Function>(fn); }
         void Evaluate() {}
     };
 

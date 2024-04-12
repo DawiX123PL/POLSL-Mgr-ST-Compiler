@@ -27,14 +27,13 @@ AST::ExprPtr ParseExpression(ErrorList &err, const Lexer::TokenList &tokens);
 AST::ExprPtr ParseVariable(ErrorList &err, Lexer::Token token);
 
 void SplitNumericLiteral(
-    ErrorList &err, 
-    std::string token, 
-    std::string *type, 
-    std::string *base_str, 
+    ErrorList &err,
+    std::string token,
+    std::string *type,
+    std::string *base_str,
     std::string *number_str,
-    bool* has_type,
-    bool* has_base
-    );
+    bool *has_type,
+    bool *has_base);
 
 template <typename T>
 void ParseInteger(ErrorList &err, std::string str, int base, T *result);
@@ -106,7 +105,6 @@ std::pair<int, int> FindTokenPair(const Lexer::TokenList &tokens, Lexer::TokenTy
 //
 std::pair<int, int> FindTokenPair(const Lexer::TokenList &tokens, int start_pos, Lexer::TokenType first, Lexer::TokenType second);
 
-
 // Scans for specified connected Tokent Type Pair and returns its position. Start stan from specified pos
 // Return:
 //  - `{first, second}` position in vector if found
@@ -120,3 +118,32 @@ std::pair<int, int> FindTokenPair(const Lexer::TokenList &tokens, int start_pos,
 // ```
 //
 std::pair<int, int> FindTokenPairWithNeasting(const Lexer::TokenList &tokens, Lexer::TokenType first, Lexer::TokenType second);
+
+// Check if index is in bounds of container
+// Returns:
+//  - `true` if valid index
+//  - `false` if out of bounds
+//
+// Example:
+// ```
+// if(IsIndexInBounds(tokens, index)){
+//     ...
+// }
+// ```
+//
+template <typename T_vec>
+bool IsIndexInBounds(T_vec vec, int index);
+
+// Checks if specified token is in vector at specified index (with bound checking)
+// Returns:
+//  - `true` if valid index and token on index has specified type
+//  - `false` if out of bounds
+//
+// Example:
+// ```
+// if(!IsTokenInPosition(tokens, 0, Lexer::TokenType::FUNCTION)){
+//     // ERROR: Expected FUNCTION keyword
+// }
+// ```
+//
+bool IsTokenInPosition(const Lexer::TokenList &tokens, int index, Lexer::TokenType type);
