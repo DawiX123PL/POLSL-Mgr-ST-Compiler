@@ -170,7 +170,7 @@ namespace AST
         VariableDefinition var_return;
         std::vector<VariableDefinition> var_input;
         std::vector<VariableDefinition> var_output;
-        std::vector<VariableDefinition> var_inout;
+        std::vector<VariableDefinition> var_in_out;
         std::vector<VariableDefinition> var_temp;
         StatementList statements;
 

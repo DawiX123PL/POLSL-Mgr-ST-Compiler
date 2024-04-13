@@ -15,8 +15,9 @@ int main(int argc, char **argv)
         PrintArgs(args);
     }
 
-    // std::string file_name = "./test/function1.st";
-    std::string file_name = "../test/function1.st";
+    std::string file_name = "./test/function1.st";
+    // std::string file_name = "../test/function1.st";
+    
     std::string file_content;
     bool isok = ReadFileContent(file_name, &file_content);
 
@@ -29,7 +30,7 @@ int main(int argc, char **argv)
     PrintFileContent(file_content);
 
     std::vector<Lexer::Token> token_list;
-    ErrorList err;
+    ErrorList_t err;
     err = Lexer::Tokenize(file_content, &token_list);
 
     std::cout << Console::FgBrightBlue("[TOKEN COUNT]: ") << token_list.size() << "\n";
@@ -52,6 +53,26 @@ int main(int argc, char **argv)
     {
         std::cout << Console::FgBrightRed("[Error]: ") << err[i].ToString() << "\n";
     }
+
+    AST::CompilerContext cc;
+
+    llvm::Function *fn = pou_list[0]->CodeGenLLVM(&cc);
+
+    std::cout
+        << Console::FgDarkGreen("[-------------------------------------------]: \n")
+        << Console::FgDarkGreen("[Generated IR code]: \n")
+        << cc.IR_ToString()
+        << Console::FgDarkGreen("[End of Generated IR code]: \n")
+        << Console::FgDarkGreen("[-------------------------------------------]: \n")
+        << "\n";
+
+    std::cout
+        << Console::FgDarkGreen("[-------------------------------------------]: \n")
+        << Console::FgDarkGreen("[Generated C/C++ header file]: \n")
+        << pou_list[0]->CodeGenCHeader()
+        << Console::FgDarkGreen("[End of Generated C/C++ header file]: \n")
+        << Console::FgDarkGreen("[-------------------------------------------]: \n")
+        << "\n";
 
     // function.Evaluate();
 

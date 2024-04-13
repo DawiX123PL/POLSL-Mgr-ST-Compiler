@@ -5,29 +5,29 @@
 #include "../lexer/st_lexer.hpp"
 #include "../ast/ast.hpp"
 
-AST::POUlist Parse(ErrorList &err, Lexer::TokenList tokens);
-AST::POUPtr ParseFunction(ErrorList &err, Lexer::TokenList tokens);
-void ParseFunctionBlock(ErrorList &err, Lexer::TokenList tokens);
-void ParseProgram(ErrorList &err, Lexer::TokenList tokens);
-void ParseFunctionBlock(ErrorList &err, Lexer::TokenList tokens);
-void ParseProgram(ErrorList &err, Lexer::TokenList tokens);
+AST::POUlist Parse(ErrorList_t &err, Lexer::TokenList tokens);
+AST::POUPtr ParseFunction(ErrorList_t &err, Lexer::TokenList tokens);
+void ParseFunctionBlock(ErrorList_t &err, Lexer::TokenList tokens);
+void ParseProgram(ErrorList_t &err, Lexer::TokenList tokens);
+void ParseFunctionBlock(ErrorList_t &err, Lexer::TokenList tokens);
+void ParseProgram(ErrorList_t &err, Lexer::TokenList tokens);
 
-std::vector<AST::VariableDeclaration> ParseVarInput(ErrorList &err, Lexer::TokenList tokens);
-std::vector<AST::VariableDeclaration> ParseVarOutput(ErrorList &err, Lexer::TokenList tokens);
-std::vector<AST::VariableDeclaration> ParseVarInOut(ErrorList &err, Lexer::TokenList tokens);
-std::vector<AST::VariableDeclaration> ParseVar(ErrorList &err, Lexer::TokenList tokens);
-std::vector<AST::VariableDeclaration> ParseVarBody(ErrorList &err, Lexer::TokenList tokens);
+std::vector<AST::VariableDeclaration> ParseVarInput(ErrorList_t &err, Lexer::TokenList tokens);
+std::vector<AST::VariableDeclaration> ParseVarOutput(ErrorList_t &err, Lexer::TokenList tokens);
+std::vector<AST::VariableDeclaration> ParseVarInOut(ErrorList_t &err, Lexer::TokenList tokens);
+std::vector<AST::VariableDeclaration> ParseVar(ErrorList_t &err, Lexer::TokenList tokens);
+std::vector<AST::VariableDeclaration> ParseVarBody(ErrorList_t &err, Lexer::TokenList tokens);
 
-AST::StatementList ParsePOUBody(ErrorList &err, Lexer::TokenList tokens);
+AST::StatementList ParsePOUBody(ErrorList_t &err, Lexer::TokenList tokens);
 
-AST::StatementPtr ParseStatement(ErrorList &err, const Lexer::TokenList &tokens);
+AST::StatementPtr ParseStatement(ErrorList_t &err, const Lexer::TokenList &tokens);
 
-AST::ExprPtr ParseExpression(ErrorList &err, const Lexer::TokenList &tokens);
+AST::ExprPtr ParseExpression(ErrorList_t &err, const Lexer::TokenList &tokens);
 
-AST::ExprPtr ParseVariable(ErrorList &err, Lexer::Token token);
+AST::ExprPtr ParseVariable(ErrorList_t &err, Lexer::Token token);
 
 void SplitNumericLiteral(
-    ErrorList &err,
+    ErrorList_t &err,
     std::string token,
     std::string *type,
     std::string *base_str,
@@ -36,14 +36,14 @@ void SplitNumericLiteral(
     bool *has_base);
 
 template <typename T>
-void ParseInteger(ErrorList &err, std::string str, int base, T *result);
+void ParseInteger(ErrorList_t &err, std::string str, int base, T *result);
 
 template <typename T>
-void ParseFloat(ErrorList &err, std::string str, int base, T *result);
+void ParseFloat(ErrorList_t &err, std::string str, int base, T *result);
 
 bool IsInteger(std::string str);
 
-AST::ExprPtr ParseNumericLiteral(ErrorList &err, Lexer::Token token);
+AST::ExprPtr ParseNumericLiteral(ErrorList_t &err, Lexer::Token token);
 
 // returns true if token is type: `NUMERIC_LITERAL`, `TRUE`, `FALSE`
 // in other case returns false

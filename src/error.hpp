@@ -56,6 +56,6 @@ public:
     }
 };
 
-
-typedef std::vector<Error> ErrorList;
+// changing this to ErrorList causes errors in llvm headers
+typedef std::vector<Error> ErrorList_t;
 

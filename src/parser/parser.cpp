@@ -18,7 +18,7 @@ Lexer::TokenList SubVector(const Lexer::TokenList &tokens, int first, int last)
     return Lexer::TokenList{&tokens[first], &tokens[last] + 1};
 }
 
-AST::POUlist Parse(ErrorList &err, Lexer::TokenList tokens)
+AST::POUlist Parse(ErrorList_t &err, Lexer::TokenList tokens)
 {
     if (tokens.size() == 0)
     {
@@ -93,7 +93,7 @@ AST::POUlist Parse(ErrorList &err, Lexer::TokenList tokens)
     return pou_list;
 }
 
-AST::POUPtr ParseFunction(ErrorList &err, Lexer::TokenList tokens)
+AST::POUPtr ParseFunction(ErrorList_t &err, Lexer::TokenList tokens)
 {
 
     if (tokens.size() == 0)
@@ -143,8 +143,13 @@ AST::POUPtr ParseFunction(ErrorList &err, Lexer::TokenList tokens)
     //
     AST::Function function;
     function.name = tokens[1].str;
-    ;
-    function.var_return = AST::VariableDeclaration(tokens[1].str, tokens[3].str);
+
+    AST::DataType type = AST::StringToDataType(tokens[3].str);
+    if(type == AST::DataType::UNNOWN){
+        err.emplace_back("\'" + tokens[3].str + "\' is not valud data type");
+    }
+
+    function.var_return = AST::VariableDeclaration(tokens[1].str, type);
 
     // scan for block:
     //  - VAR_INPUT
@@ -158,13 +163,13 @@ AST::POUPtr ParseFunction(ErrorList &err, Lexer::TokenList tokens)
 
         { // VAR_INPUT
             std::pair<int, int> pair_pos = FindTokenPair(tokens, current_pos, Lexer::TokenType::VAR_INPUT, Lexer::TokenType::END_VAR);
-            if (pair_pos.first >= 0 && pair_pos.second == -1)
+            if (pair_pos.first == current_pos && pair_pos.second == -1)
             {
                 err.emplace_back("Missing END_VAR at the end of VAR_INPUT ");
                 return AST::Function::Make(function);
             }
 
-            if (pair_pos.first >= 0 && pair_pos.second >= 0)
+            if (pair_pos.first == current_pos && pair_pos.second >= 0)
             {
                 function.var_input = ParseVarInput(err, SubVector(tokens, pair_pos));
                 current_pos = pair_pos.second + 1;
@@ -174,13 +179,13 @@ AST::POUPtr ParseFunction(ErrorList &err, Lexer::TokenList tokens)
 
         { // VAR_OUTPUT
             std::pair<int, int> pair_pos = FindTokenPair(tokens, current_pos, Lexer::TokenType::VAR_OUTPUT, Lexer::TokenType::END_VAR);
-            if (pair_pos.first >= 0 && pair_pos.second == -1)
+            if (pair_pos.first == current_pos && pair_pos.second == -1)
             {
                 err.emplace_back("Missing END_VAR at the end of VAR_OUTPUT ");
                 return AST::Function::Make(function);
             }
 
-            if (pair_pos.first >= 0 && pair_pos.second >= 0)
+            if (pair_pos.first == current_pos && pair_pos.second >= 0)
             {
                 function.var_output = ParseVarOutput(err, SubVector(tokens, pair_pos));
                 current_pos = pair_pos.second + 1;
@@ -189,28 +194,28 @@ AST::POUPtr ParseFunction(ErrorList &err, Lexer::TokenList tokens)
         }
         { // VAR_IN_OUT
             std::pair<int, int> pair_pos = FindTokenPair(tokens, current_pos, Lexer::TokenType::VAR_IN_OUT, Lexer::TokenType::END_VAR);
-            if (pair_pos.first >= 0 && pair_pos.second == -1)
+            if (pair_pos.first == current_pos && pair_pos.second == -1)
             {
                 err.emplace_back("Missing END_VAR at the end of VAR_IN_OUT ");
                 return AST::Function::Make(function);
             }
 
-            if (pair_pos.first >= 0 && pair_pos.second >= 0)
+            if (pair_pos.first == current_pos && pair_pos.second >= 0)
             {
-                function.var_inout = ParseVarInOut(err, SubVector(tokens, pair_pos));
+                function.var_in_out = ParseVarInOut(err, SubVector(tokens, pair_pos));
                 current_pos = pair_pos.second + 1;
                 continue;
             }
         }
         { // VAR
             std::pair<int, int> pair_pos = FindTokenPair(tokens, current_pos, Lexer::TokenType::VAR, Lexer::TokenType::END_VAR);
-            if (pair_pos.first >= 0 && pair_pos.second == -1)
+            if (pair_pos.first == current_pos && pair_pos.second == -1)
             {
                 err.emplace_back("Missing END_VAR at the end of END_VAR ");
                 return AST::Function::Make(function);
             }
 
-            if (pair_pos.first >= 0 && pair_pos.second >= 0)
+            if (pair_pos.first == current_pos && pair_pos.second >= 0)
             {
                 function.var_temp = ParseVar(err, SubVector(tokens, pair_pos));
                 current_pos = pair_pos.second + 1;
@@ -229,13 +234,13 @@ AST::POUPtr ParseFunction(ErrorList &err, Lexer::TokenList tokens)
     return AST::Function::Make(function);
 }
 
-void ParseFunctionBlock(ErrorList &err, Lexer::TokenList tokens)
+void ParseFunctionBlock(ErrorList_t &err, Lexer::TokenList tokens)
 {
     err.emplace_back("Parsing Function Block not yet implemented");
     return;
 }
 
-void ParseProgram(ErrorList &err, Lexer::TokenList tokens)
+void ParseProgram(ErrorList_t &err, Lexer::TokenList tokens)
 {
     err.emplace_back("Parsing Program not yet implemented");
     return;
@@ -246,7 +251,7 @@ void ParseProgram(ErrorList &err, Lexer::TokenList tokens)
 // TODO: parse IF, SWITCH and loops. for now this function threads all statemens as:
 // - assignment statement
 // - empty statement
-AST::StatementList ParsePOUBody(ErrorList &err, Lexer::TokenList tokens)
+AST::StatementList ParsePOUBody(ErrorList_t &err, Lexer::TokenList tokens)
 {
     AST::StatementList statement_list;
 
@@ -291,7 +296,7 @@ AST::StatementList ParsePOUBody(ErrorList &err, Lexer::TokenList tokens)
 
 ///////////////////////////
 
-std::vector<AST::VariableDeclaration> ParseVarInput(ErrorList &err, Lexer::TokenList tokens)
+std::vector<AST::VariableDeclaration> ParseVarInput(ErrorList_t &err, Lexer::TokenList tokens)
 {
     if (tokens.size() == 0)
     {
@@ -316,7 +321,7 @@ std::vector<AST::VariableDeclaration> ParseVarInput(ErrorList &err, Lexer::Token
     return ParseVarBody(err, SubVector(tokens, 1, tokens.size() - 2));
 }
 
-std::vector<AST::VariableDeclaration> ParseVarOutput(ErrorList &err, Lexer::TokenList tokens)
+std::vector<AST::VariableDeclaration> ParseVarOutput(ErrorList_t &err, Lexer::TokenList tokens)
 {
     if (tokens.size() == 0)
     {
@@ -341,7 +346,7 @@ std::vector<AST::VariableDeclaration> ParseVarOutput(ErrorList &err, Lexer::Toke
     return ParseVarBody(err, SubVector(tokens, 1, tokens.size() - 2));
 }
 
-std::vector<AST::VariableDeclaration> ParseVarInOut(ErrorList &err, Lexer::TokenList tokens)
+std::vector<AST::VariableDeclaration> ParseVarInOut(ErrorList_t &err, Lexer::TokenList tokens)
 {
     if (tokens.size() == 0)
     {
@@ -366,7 +371,7 @@ std::vector<AST::VariableDeclaration> ParseVarInOut(ErrorList &err, Lexer::Token
     return ParseVarBody(err, SubVector(tokens, 1, tokens.size() - 2));
 }
 
-std::vector<AST::VariableDeclaration> ParseVar(ErrorList &err, Lexer::TokenList tokens)
+std::vector<AST::VariableDeclaration> ParseVar(ErrorList_t &err, Lexer::TokenList tokens)
 {
     if (tokens.size() == 0)
     {
@@ -393,7 +398,7 @@ std::vector<AST::VariableDeclaration> ParseVar(ErrorList &err, Lexer::TokenList 
 
 ///////////////////////////
 
-bool ParseVarDeclaration(ErrorList &err, Lexer::TokenList tokens, AST::VariableDeclaration *var)
+bool ParseVarDeclaration(ErrorList_t &err, Lexer::TokenList tokens, AST::VariableDeclaration *var)
 {
     // ;
     // name : data_type;
@@ -449,7 +454,12 @@ bool ParseVarDeclaration(ErrorList &err, Lexer::TokenList tokens, AST::VariableD
 
     if (IsIndexInBounds(tokens, 3) && tokens[3].type == Lexer::TokenType::SEMICOLON)
     {
-        *var = AST::VariableDeclaration(name, data_type);
+        AST::DataType type = AST::StringToDataType(data_type);
+        if(type == AST::DataType::UNNOWN){
+            err.emplace_back("\'" + data_type + "\' is not valid data type");
+            return false;
+        }
+        *var = AST::VariableDeclaration(name, type);
         return true;
     }
 
@@ -465,8 +475,14 @@ bool ParseVarDeclaration(ErrorList &err, Lexer::TokenList tokens, AST::VariableD
 
         Lexer::TokenList expr_tokens = SubVector(tokens, 4, semicolon_pos - 1);
         AST::ExprPtr initial_value = ParseExpression(err, expr_tokens);
+        
 
-        *var = AST::VariableDeclaration(name, data_type, initial_value);
+        AST::DataType type = AST::StringToDataType(data_type);
+        if(type == AST::DataType::UNNOWN){
+            err.emplace_back("\'" + data_type + "\' is not valid data type");
+            return false;
+        }
+        *var = AST::VariableDeclaration(name, type, initial_value);
         return true;
     }
 
@@ -474,7 +490,7 @@ bool ParseVarDeclaration(ErrorList &err, Lexer::TokenList tokens, AST::VariableD
     return false;
 }
 
-std::vector<AST::VariableDeclaration> ParseVarBody(ErrorList &err, Lexer::TokenList tokens)
+std::vector<AST::VariableDeclaration> ParseVarBody(ErrorList_t &err, Lexer::TokenList tokens)
 {
     // name : data_type;
     // name : datatype := expr;
@@ -508,14 +524,13 @@ std::vector<AST::VariableDeclaration> ParseVarBody(ErrorList &err, Lexer::TokenL
         begin_var_pos = semicolon_pos + 1;
     }
 
-    err.emplace_back("Parsing Var not yet implemented");
     return variables;
 }
 
 /////////////////////////////////
 
 // TODO
-AST::StatementPtr ParseStatement(ErrorList &err, const Lexer::TokenList &tokens)
+AST::StatementPtr ParseStatement(ErrorList_t &err, const Lexer::TokenList &tokens)
 {
     if (tokens.size() == 0)
     {
@@ -703,7 +718,7 @@ AST::ExprPtr ParseOperator(AST::ExprPtr left, AST::ExprPtr right, Lexer::TokenTy
     return expr;
 }
 
-AST::ExprPtr ParseExpression(ErrorList &err, const Lexer::TokenList &tokens)
+AST::ExprPtr ParseExpression(ErrorList_t &err, const Lexer::TokenList &tokens)
 {
 
     if (tokens.size() == 0)
@@ -818,7 +833,7 @@ AST::ExprPtr ParseExpression(ErrorList &err, const Lexer::TokenList &tokens)
     return *expr;
 }
 
-AST::ExprPtr ParseVariable(ErrorList &err, Lexer::Token token)
+AST::ExprPtr ParseVariable(ErrorList_t &err, Lexer::Token token)
 {
     if (token.type != Lexer::TokenType::IDENTIFIER)
     {
@@ -830,7 +845,7 @@ AST::ExprPtr ParseVariable(ErrorList &err, Lexer::Token token)
 }
 
 void SplitNumericLiteral(
-    ErrorList &err,
+    ErrorList_t &err,
     std::string token,
     std::string *type,
     std::string *base_str,
@@ -908,7 +923,7 @@ void SplitNumericLiteral(
 }
 
 template <typename T>
-void ParseInteger(ErrorList &err, std::string str, int base, T *result)
+void ParseInteger(ErrorList_t &err, std::string str, int base, T *result)
 {
     T number;
     std::from_chars_result conversion_result = std::from_chars(str.c_str(), str.c_str() + str.size(), number, base);
@@ -924,15 +939,13 @@ void ParseInteger(ErrorList &err, std::string str, int base, T *result)
     // other error
     if (conversion_result.ec != std::errc())
     {
-        ;
-
         err.push_back("error: \"" + str + "\" is not valid base " + std::to_string(base) + " number. \n");
         return;
     }
 }
 
 template <typename T>
-void ParseFloat(ErrorList &err, std::string str, int base, T *result)
+void ParseFloat(ErrorList_t &err, std::string str, int base, T *result)
 {
     T number;
     std::from_chars_result conversion_result = std::from_chars(str.c_str(), str.c_str() + str.size(), number, std::chars_format::general);
@@ -968,7 +981,7 @@ bool IsInteger(std::string str)
 }
 
 // TODO: finish this function
-AST::ExprPtr ParseNumericLiteral(ErrorList &err, Lexer::Token token)
+AST::ExprPtr ParseNumericLiteral(ErrorList_t &err, Lexer::Token token)
 {
     std::string type;
     std::string base_str;
