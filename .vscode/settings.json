@@ -89,7 +89,8 @@
         "xlocmes": "cpp",
         "xlocmon": "cpp",
         "xloctime": "cpp",
-        "cassert": "cpp"
+        "cassert": "cpp",
+        "iomanip": "cpp"
     },
     "explorer.excludeGitIgnore": true,
     "cmake.configureOnOpen": true,

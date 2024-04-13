@@ -13,7 +13,8 @@ set(SOURCES
     src/lexer/st_lexer.hpp
     src/parser/parser.cpp 
     src/parser/parser.hpp
-    src/ast.hpp 
+    src/ast/ast.hpp 
+    src/ast/ast.cpp 
     src/error.hpp 
     src/main.cpp
 )
