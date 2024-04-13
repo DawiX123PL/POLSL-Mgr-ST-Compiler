@@ -90,9 +90,13 @@
         "xlocmon": "cpp",
         "xloctime": "cpp",
         "cassert": "cpp",
-        "iomanip": "cpp"
+        "iomanip": "cpp",
+        "xhash": "cpp"
     },
     "explorer.excludeGitIgnore": true,
     "cmake.configureOnOpen": true,
-    "C_Cpp.markdownInComments": "enabled"
+    "C_Cpp.markdownInComments": "enabled",
+    "cmake.debugConfig": {
+        "cwd": "${workspaceFolder}"
+    }
 }
