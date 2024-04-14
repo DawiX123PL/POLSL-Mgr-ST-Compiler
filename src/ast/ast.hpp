@@ -55,8 +55,8 @@ namespace AST
             DataType data_type;
             llvm::AllocaInst *llvm_alloca_instance;
 
-            LocalVariable(): data_type(DataType::UNNOWN), llvm_alloca_instance(nullptr) {}
-            LocalVariable(DataType dt, llvm::AllocaInst *inst): data_type(dt), llvm_alloca_instance(inst) {}
+            LocalVariable() : data_type(DataType::UNNOWN), llvm_alloca_instance(nullptr) {}
+            LocalVariable(DataType dt, llvm::AllocaInst *inst) : data_type(dt), llvm_alloca_instance(inst) {}
         };
 
         std::map<std::string, LocalVariable> local_variables;
@@ -83,7 +83,8 @@ namespace AST
     public:
         //
         virtual void Evaluate() = 0;
-        virtual DataType GetDataType() = 0;
+        virtual DataType GetDataType(CompilerContext *cc) = 0;
+        virtual bool IsLiteral() = 0;
         virtual llvm::Value *CodeGenLLVM(CompilerContext *cc) = 0;
     };
 
@@ -96,6 +97,10 @@ namespace AST
 
     public:
         Unary(ExprPtr ex) : expr(ex) {}
+        bool IsLiteral() override
+        {
+            return expr->IsLiteral();
+        };
     };
 
     class Binary : public Expr
@@ -106,6 +111,10 @@ namespace AST
 
     public:
         Binary(ExprPtr ex_l, ExprPtr ex_r) : expr_l(ex_l), expr_r(ex_r) {}
+        bool IsLiteral() override
+        {
+            return (expr_l->IsLiteral()) && (expr_r->IsLiteral());
+        };
     };
 
     class FunctionCall : public Expr
@@ -142,8 +151,12 @@ namespace AST
         static ExprPtr Create_LREAL(double val) { return std::make_shared<LiteralSpecific>(DataType::LREAL, (double)val); }
 
         void Evaluate() override {};
-        DataType GetDataType() override { return type; }
+        DataType GetDataType(CompilerContext *cc) override { return type; }
         llvm::Value *CodeGenLLVM(CompilerContext *cc) override;
+        bool IsLiteral() override
+        {
+            return true;
+        };
     };
 
     class VariableDeclaration
@@ -166,6 +179,11 @@ namespace AST
         {
             return type;
         }
+
+        ExprPtr GetInitialValue()
+        {
+            return initial_value;
+        }
     };
 
     class Variable : public Expr
@@ -177,14 +195,19 @@ namespace AST
         static ExprPtr CreateVariable(std::string _name) { return std::make_shared<Variable>(_name); }
 
         void Evaluate() override {}
-        DataType GetDataType() override { return DataType::UNNOWN; } // TODO: get variable data type
+        DataType GetDataType(CompilerContext *cc) override;
         llvm::Value *CodeGenLLVM(CompilerContext *cc) override;
+        bool IsLiteral() override
+        {
+            return false;
+        };
     };
 
     class Statement
     {
     public:
         virtual void Evaluate() = 0;
+        virtual void CodeGenLLVM(CompilerContext *cc) = 0;
     };
 
     typedef std::shared_ptr<AST::Statement> StatementPtr;
@@ -197,9 +220,10 @@ namespace AST
         ExprPtr expr_r;
 
     public:
-        AssignmentStatement(ExprPtr expr_l, ExprPtr expr_r){};
-        static StatementPtr Make(ExprPtr expr_l, ExprPtr expr_r) { return std::make_shared<AssignmentStatement>(expr_l, expr_r); }
+        AssignmentStatement(ExprPtr _expr_l, ExprPtr _expr_r) : expr_l(_expr_l), expr_r(_expr_r){};
+        static StatementPtr Make(ExprPtr _expr_l, ExprPtr _expr_r) { return std::make_shared<AssignmentStatement>(_expr_l, _expr_r); }
         void Evaluate() override {}
+        void CodeGenLLVM(CompilerContext *cc) override;
     };
 
     class ExprStatement : public Statement
@@ -211,6 +235,7 @@ namespace AST
         ExprStatement(ExprPtr _expr){};
         static StatementPtr Make(ExprPtr _expr) { return std::make_shared<ExprStatement>(_expr); }
         void Evaluate() override {}
+        void CodeGenLLVM(CompilerContext *cc) override;
     };
 
     class EmptyStatement : public Statement
@@ -220,6 +245,7 @@ namespace AST
         EmptyStatement(){};
         static StatementPtr Make() { return std::make_shared<EmptyStatement>(); }
         void Evaluate() override {}
+        void CodeGenLLVM(CompilerContext *cc) override;
     };
 
     class POU
@@ -248,6 +274,7 @@ namespace AST
         static POUPtr Make(Function fn) { return std::make_shared<Function>(fn); }
         void Evaluate() override {}
         std::string CodeGenCHeader() override;
+        void AllocAndInitLocalVariables(CompilerContext *cc, llvm::Function *function);
         llvm::Function *GenerateLLVMFunctionPrototype(CompilerContext *cc);
         void LLVMAssignArgumentNames(CompilerContext *cc, llvm::Function *function);
         llvm::Function *CodeGenLLVM(CompilerContext *cc) override;
@@ -259,7 +286,7 @@ namespace AST
         UnaryPlus(ExprPtr expr) : Unary(expr){};
         static ExprPtr Make(ExprPtr expr) { return std::make_shared<UnaryPlus>(expr); }
         void Evaluate() override {}
-        DataType GetDataType() override;
+        DataType GetDataType(CompilerContext *cc) override;
         llvm::Value *CodeGenLLVM(CompilerContext *cc) override;
     };
 
@@ -269,7 +296,7 @@ namespace AST
         UnaryMinus(ExprPtr expr) : Unary(expr){};
         static ExprPtr Make(ExprPtr expr) { return std::make_shared<UnaryMinus>(expr); }
         void Evaluate() override {}
-        DataType GetDataType() override;
+        DataType GetDataType(CompilerContext *cc) override;
         llvm::Value *CodeGenLLVM(CompilerContext *cc) override;
     };
 
@@ -279,7 +306,7 @@ namespace AST
         BooleanNOT(ExprPtr expr) : Unary(expr){};
         static ExprPtr Make(ExprPtr expr) { return std::make_shared<BooleanNOT>(expr); }
         void Evaluate() override {}
-        DataType GetDataType() override;
+        DataType GetDataType(CompilerContext *cc) override;
         llvm::Value *CodeGenLLVM(CompilerContext *cc) override;
     };
 
@@ -289,7 +316,7 @@ namespace AST
         Exponentiation(ExprPtr expr_l, ExprPtr expr_r) : Binary(expr_l, expr_r){};
         static ExprPtr Make(ExprPtr expr_l, ExprPtr expr_r) { return std::make_shared<Exponentiation>(expr_l, expr_r); }
         void Evaluate() override {}
-        DataType GetDataType() override;
+        DataType GetDataType(CompilerContext *cc) override;
         llvm::Value *CodeGenLLVM(CompilerContext *cc) override;
     };
 
@@ -299,7 +326,7 @@ namespace AST
         Multiply(ExprPtr expr_l, ExprPtr expr_r) : Binary(expr_l, expr_r){};
         static ExprPtr Make(ExprPtr expr_l, ExprPtr expr_r) { return std::make_shared<Multiply>(expr_l, expr_r); }
         void Evaluate() override {}
-        DataType GetDataType() override;
+        DataType GetDataType(CompilerContext *cc) override;
         llvm::Value *CodeGenLLVM(CompilerContext *cc) override;
     };
 
@@ -309,7 +336,7 @@ namespace AST
         Divide(ExprPtr expr_l, ExprPtr expr_r) : Binary(expr_l, expr_r){};
         static ExprPtr Make(ExprPtr expr_l, ExprPtr expr_r) { return std::make_shared<Divide>(expr_l, expr_r); }
         void Evaluate() override {}
-        DataType GetDataType() override;
+        DataType GetDataType(CompilerContext *cc) override;
         llvm::Value *CodeGenLLVM(CompilerContext *cc) override;
     };
 
@@ -319,7 +346,7 @@ namespace AST
         Modulo(ExprPtr expr_l, ExprPtr expr_r) : Binary(expr_l, expr_r){};
         static ExprPtr Make(ExprPtr expr_l, ExprPtr expr_r) { return std::make_shared<Modulo>(expr_l, expr_r); }
         void Evaluate() override {}
-        DataType GetDataType() override;
+        DataType GetDataType(CompilerContext *cc) override;
         llvm::Value *CodeGenLLVM(CompilerContext *cc) override;
     };
 
@@ -329,7 +356,7 @@ namespace AST
         Add(ExprPtr expr_l, ExprPtr expr_r) : Binary(expr_l, expr_r){};
         static ExprPtr Make(ExprPtr expr_l, ExprPtr expr_r) { return std::make_shared<Add>(expr_l, expr_r); }
         void Evaluate() override {}
-        DataType GetDataType() override;
+        DataType GetDataType(CompilerContext *cc) override;
         llvm::Value *CodeGenLLVM(CompilerContext *cc) override;
     };
 
@@ -339,7 +366,7 @@ namespace AST
         Subtract(ExprPtr expr_l, ExprPtr expr_r) : Binary(expr_l, expr_r){};
         static ExprPtr Make(ExprPtr expr_l, ExprPtr expr_r) { return std::make_shared<Subtract>(expr_l, expr_r); }
         void Evaluate() override {}
-        DataType GetDataType() override;
+        DataType GetDataType(CompilerContext *cc) override;
         llvm::Value *CodeGenLLVM(CompilerContext *cc) override;
     };
 
@@ -349,7 +376,7 @@ namespace AST
         GreaterThan(ExprPtr expr_l, ExprPtr expr_r) : Binary(expr_l, expr_r){};
         static ExprPtr Make(ExprPtr expr_l, ExprPtr expr_r) { return std::make_shared<GreaterThan>(expr_l, expr_r); }
         void Evaluate() override {}
-        DataType GetDataType() override;
+        DataType GetDataType(CompilerContext *cc) override;
         llvm::Value *CodeGenLLVM(CompilerContext *cc) override;
     };
 
@@ -359,7 +386,7 @@ namespace AST
         LessThan(ExprPtr expr_l, ExprPtr expr_r) : Binary(expr_l, expr_r){};
         static ExprPtr Make(ExprPtr expr_l, ExprPtr expr_r) { return std::make_shared<LessThan>(expr_l, expr_r); }
         void Evaluate() override {}
-        DataType GetDataType() override;
+        DataType GetDataType(CompilerContext *cc) override;
         llvm::Value *CodeGenLLVM(CompilerContext *cc) override;
     };
 
@@ -369,7 +396,7 @@ namespace AST
         GreaterOrEqual(ExprPtr expr_l, ExprPtr expr_r) : Binary(expr_l, expr_r){};
         static ExprPtr Make(ExprPtr expr_l, ExprPtr expr_r) { return std::make_shared<GreaterOrEqual>(expr_l, expr_r); }
         void Evaluate() override {}
-        DataType GetDataType() override;
+        DataType GetDataType(CompilerContext *cc) override;
         llvm::Value *CodeGenLLVM(CompilerContext *cc) override;
     };
 
@@ -379,7 +406,7 @@ namespace AST
         LessOrEqual(ExprPtr expr_l, ExprPtr expr_r) : Binary(expr_l, expr_r){};
         static ExprPtr Make(ExprPtr expr_l, ExprPtr expr_r) { return std::make_shared<LessOrEqual>(expr_l, expr_r); }
         void Evaluate() override {}
-        DataType GetDataType() override;
+        DataType GetDataType(CompilerContext *cc) override;
         llvm::Value *CodeGenLLVM(CompilerContext *cc) override;
     };
 
@@ -389,7 +416,7 @@ namespace AST
         Equality(ExprPtr expr_l, ExprPtr expr_r) : Binary(expr_l, expr_r){};
         static ExprPtr Make(ExprPtr expr_l, ExprPtr expr_r) { return std::make_shared<Equality>(expr_l, expr_r); }
         void Evaluate() override {}
-        DataType GetDataType() override;
+        DataType GetDataType(CompilerContext *cc) override;
         llvm::Value *CodeGenLLVM(CompilerContext *cc) override;
     };
 
@@ -399,7 +426,7 @@ namespace AST
         Inequality(ExprPtr expr_l, ExprPtr expr_r) : Binary(expr_l, expr_r){};
         static ExprPtr Make(ExprPtr expr_l, ExprPtr expr_r) { return std::make_shared<Inequality>(expr_l, expr_r); }
         void Evaluate() override {}
-        DataType GetDataType() override;
+        DataType GetDataType(CompilerContext *cc) override;
         llvm::Value *CodeGenLLVM(CompilerContext *cc) override;
     };
 
@@ -409,7 +436,7 @@ namespace AST
         BooleanAND(ExprPtr expr_l, ExprPtr expr_r) : Binary(expr_l, expr_r){};
         static ExprPtr Make(ExprPtr expr_l, ExprPtr expr_r) { return std::make_shared<BooleanAND>(expr_l, expr_r); }
         void Evaluate() override {}
-        DataType GetDataType() override;
+        DataType GetDataType(CompilerContext *cc) override;
         llvm::Value *CodeGenLLVM(CompilerContext *cc) override;
     };
 
@@ -419,7 +446,7 @@ namespace AST
         BooleanOR(ExprPtr expr_l, ExprPtr expr_r) : Binary(expr_l, expr_r){};
         static ExprPtr Make(ExprPtr expr_l, ExprPtr expr_r) { return std::make_shared<BooleanOR>(expr_l, expr_r); }
         void Evaluate() override {}
-        DataType GetDataType() override;
+        DataType GetDataType(CompilerContext *cc) override;
         llvm::Value *CodeGenLLVM(CompilerContext *cc) override;
     };
 
@@ -429,7 +456,7 @@ namespace AST
         BooleanXOR(ExprPtr expr_l, ExprPtr expr_r) : Binary(expr_l, expr_r){};
         static ExprPtr Make(ExprPtr expr_l, ExprPtr expr_r) { return std::make_shared<BooleanXOR>(expr_l, expr_r); }
         void Evaluate() override {}
-        DataType GetDataType() override;
+        DataType GetDataType(CompilerContext *cc) override;
         llvm::Value *CodeGenLLVM(CompilerContext *cc) override;
     };
 

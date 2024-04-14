@@ -1,5 +1,7 @@
 #include "ast.hpp"
 
+#include <iostream>
+
 namespace AST
 {
 
@@ -123,14 +125,12 @@ namespace AST
         // step 1.1 - fill VAR_INPUT;
         for (int i = 0; i < var_input.size(); i++)
         {
-            // todo: parse all different data types
             args.push_back(DataTypeToLLVMType(cc, var_input[i].GetType()));
         }
 
         // step 1.2 - fill VAR_IN_OUT;
         for (int i = 0; i < var_in_out.size(); i++)
         {
-            auto type = llvm::Type::getInt8Ty(*cc->llvm_context);
             auto ptr = llvm::PointerType::get(DataTypeToLLVMType(cc, var_in_out[i].GetType()), 0);
             args.push_back(ptr);
         }
@@ -138,14 +138,12 @@ namespace AST
         // step 1.3 - fill VAR_OUTPUT;
         for (int i = 0; i < var_output.size(); i++)
         {
-            auto type = llvm::Type::getInt8Ty(*cc->llvm_context);
             auto ptr = llvm::PointerType::get(DataTypeToLLVMType(cc, var_output[i].GetType()), 0);
             args.push_back(ptr);
         }
 
         // step 1.4 - fill return value;
         {
-            auto type = llvm::Type::getInt8Ty(*cc->llvm_context);
             auto ptr = llvm::PointerType::get(DataTypeToLLVMType(cc, var_return.GetType()), 0);
             args.push_back(ptr);
         }
@@ -234,24 +232,87 @@ namespace AST
         return ir_builder_tmp.CreateAlloca(type, nullptr, variable.GetName() + "_alloca");
     }
 
-    // llvm::Value* GetDefaultValueForType(DataType type){
-    //     switch (type)
-    //     {
-    //        case DataType::BOOL: return   llvm::Constant::getNullValue;
-    //        case DataType::SINT: return   llvm::Constant::get
-    //        case DataType::INT: return   llvm::
-    //        case DataType::DINT: return   llvm::
-    //        case DataType::LINT: return   llvm::
-    //        case DataType::USINT: return   llvm::
-    //        case DataType::UINT: return   llvm::
-    //        case DataType::UDINT: return   llvm::
-    //        case DataType::ULINT: return   llvm::
-    //        case DataType::REAL: return   llvm::
-    //        case DataType::LREAL: return   llvm::
-    //     }
+    void Function::AllocAndInitLocalVariables(CompilerContext *cc, llvm::Function *function)
+    {
 
-    //     return nullptr;
-    // }
+        // create alloca instances
+        // list of all allocas
+        std::vector<AST::VariableDeclaration> alloca_vars;
+        alloca_vars.insert(alloca_vars.end(), var_input.begin(), var_input.end());
+        alloca_vars.insert(alloca_vars.end(), var_in_out.begin(), var_in_out.end());
+        alloca_vars.insert(alloca_vars.end(), var_output.begin(), var_output.end());
+        alloca_vars.insert(alloca_vars.end(), var_temp.begin(), var_temp.end());
+        alloca_vars.insert(alloca_vars.end(), var_return);
+
+        for (int i = 0; i < alloca_vars.size(); i++)
+        {
+            // create alloca instance
+            llvm::AllocaInst *inst = GenerateEntryBlockAlloca(cc, function, alloca_vars[i]);
+            CompilerContext::LocalVariable local_Var(alloca_vars[i].GetType(), inst);
+            cc->local_variables[alloca_vars[i].GetName()] = local_Var;
+        }
+
+        // initialize VAR_OUTPUT and VAR variables:
+        // list of variables with default or custom value;
+        std::vector<AST::VariableDeclaration> initializable_vars;
+        initializable_vars.insert(initializable_vars.end(), var_output.begin(), var_output.end());
+        initializable_vars.insert(initializable_vars.end(), var_temp.begin(), var_temp.end());
+        initializable_vars.insert(initializable_vars.end(), var_return);
+
+        for (int i = 0; i < initializable_vars.size(); i++)
+        {
+            AST::VariableDeclaration initializable_var = initializable_vars[i];
+
+            auto local_var = cc->local_variables[initializable_var.GetName()];
+            ExprPtr initial_expr = initializable_var.GetInitialValue();
+
+            llvm::AllocaInst *inst = local_var.llvm_alloca_instance;
+            llvm::Value *init_value;
+
+            if (initial_expr == nullptr)
+            {
+                init_value = llvm::ConstantAggregateZero::get(inst->getAllocatedType());
+            }
+            else
+            {
+                init_value = initial_expr->CodeGenLLVM(cc);
+            }
+
+            cc->llvm_ir_builder->CreateStore(init_value, inst);
+        }
+
+        // initialize VAR_INPUT variables:
+        for (int i = 0; i < var_input.size(); i++)
+        {
+            AST::VariableDeclaration var = var_input[i];
+
+            auto local_var = cc->local_variables[var.GetName()];
+            ExprPtr initial_expr = var.GetInitialValue();
+
+            llvm::AllocaInst *inst = local_var.llvm_alloca_instance;
+            llvm::Value *init_value = function->getArg(i);
+
+            cc->llvm_ir_builder->CreateStore(init_value, inst);
+        }
+
+        // initialize VAR_IN_OUT variables:
+        const int var_intout_offser = var_input.size();
+
+        for (int i = 0; i < var_in_out.size(); i++)
+        {
+            AST::VariableDeclaration var = var_in_out[i];
+
+            auto local_var = cc->local_variables[var.GetName()];
+            ExprPtr initial_expr = var.GetInitialValue();
+
+            llvm::AllocaInst *inst = local_var.llvm_alloca_instance;
+            llvm::Value *arg_val = function->getArg(var_intout_offser + i);
+
+            // cc->llvm_ir_builder->CreateStore(arg_val, inst);
+            auto load = cc->llvm_ir_builder->CreateLoad(DataTypeToLLVMType(cc, var.GetType()), arg_val);
+            cc->llvm_ir_builder->CreateStore(load, inst);
+        }
+    }
 
     llvm::Function *Function::CodeGenLLVM(CompilerContext *cc)
     {
@@ -273,106 +334,79 @@ namespace AST
         llvm::BasicBlock *bb = llvm::BasicBlock::Create(*cc->llvm_context, "entry", function);
         cc->llvm_ir_builder->SetInsertPoint(bb);
 
-        // step 3 - create mutable representations of arguments variables
+        // step 3 - create mutable representations of arguments variables and initialize them
+        AllocAndInitLocalVariables(cc, function);
 
-        for (int i = 0; i < var_input.size(); i++)
+        // evaluate statements
+        for (int i = 0; i < statement_list.size(); i++)
         {
-            // create alloca instance
-            llvm::AllocaInst *inst = GenerateEntryBlockAlloca(cc, function, var_input[i]);
-            CompilerContext::LocalVariable local_Var(var_input[i].GetType(), inst);
-            cc->local_variables[var_input[i].GetName()] = local_Var;
+            statement_list[i]->CodeGenLLVM(cc);
         }
+
+        // last step - return values VAR_IN_OUT VAR_OUT and return_value
+        // return VAR_IN_OUT
+        const int var_in_out_offset = var_input.size();
+        const int var_output_offset = var_in_out_offset + var_in_out.size();
+        const int var_return_offset = var_output_offset + var_output.size();
 
         for (int i = 0; i < var_in_out.size(); i++)
         {
-            // create alloca instance
-            llvm::AllocaInst *inst = GenerateEntryBlockAlloca(cc, function, var_in_out[i]);
-            CompilerContext::LocalVariable local_Var(var_in_out[i].GetType(), inst);
-            cc->local_variables[var_in_out[i].GetName()] = local_Var;
+            auto local_var_copy = cc->local_variables[var_in_out[i].GetName()];
+            auto load_result = cc->llvm_ir_builder->CreateLoad(DataTypeToLLVMType(cc, local_var_copy.data_type), local_var_copy.llvm_alloca_instance);
+            cc->llvm_ir_builder->CreateStore(load_result, function->getArg(var_in_out_offset + i));
         }
 
         for (int i = 0; i < var_output.size(); i++)
         {
-            // create alloca instance
-            llvm::AllocaInst *inst = GenerateEntryBlockAlloca(cc, function, var_output[i]);
-            CompilerContext::LocalVariable local_Var(var_output[i].GetType(), inst);
-            cc->local_variables[var_output[i].GetName()] = local_Var;
-        }
-
-        for (int i = 0; i < var_temp.size(); i++)
-        {
-            // create alloca instance
-            llvm::AllocaInst *inst = GenerateEntryBlockAlloca(cc, function, var_temp[i]);
-            CompilerContext::LocalVariable local_Var(var_temp[i].GetType(), inst);
-            cc->local_variables[var_temp[i].GetName()] = local_Var;
+            auto local_var_copy = cc->local_variables[var_output[i].GetName()];
+            auto load_result = cc->llvm_ir_builder->CreateLoad(DataTypeToLLVMType(cc, local_var_copy.data_type), local_var_copy.llvm_alloca_instance);
+            cc->llvm_ir_builder->CreateStore(load_result, function->getArg(var_output_offset + i));
         }
 
         {
-            // create alloca instance
-            llvm::AllocaInst *inst = GenerateEntryBlockAlloca(cc, function, var_return);
-            CompilerContext::LocalVariable local_Var(var_return.GetType(), inst);
-            cc->local_variables[var_return.GetName()] = local_Var;
+            auto local_var_copy = cc->local_variables[var_return.GetName()];
+            auto load_result = cc->llvm_ir_builder->CreateLoad(DataTypeToLLVMType(cc, local_var_copy.data_type), local_var_copy.llvm_alloca_instance);
+            cc->llvm_ir_builder->CreateStore(load_result, function->getArg(var_return_offset));
         }
 
-        // initialize local variables:
-
-        for (int i = 0; i < var_output.size(); i++)
-        {
-            auto local_var = cc->local_variables[var_output[i].GetName()];
-            llvm::AllocaInst *inst = local_var.llvm_alloca_instance;
-            llvm::Value *init_value = llvm::ConstantAggregateZero::get(inst->getAllocatedType());
-            cc->llvm_ir_builder->CreateStore(init_value, inst);
-        }
-
-        for (int i = 0; i < var_temp.size(); i++)
-        {
-            auto local_var = cc->local_variables[var_temp[i].GetName()];
-            llvm::AllocaInst *inst = local_var.llvm_alloca_instance;
-            llvm::Value *init_value = llvm::ConstantAggregateZero::get(inst->getAllocatedType());
-            cc->llvm_ir_builder->CreateStore(init_value, inst);
-        }
-
-        {
-            auto local_var = cc->local_variables[var_return.GetName()];
-            llvm::AllocaInst *inst = local_var.llvm_alloca_instance;
-            llvm::Value *init_value = llvm::ConstantAggregateZero::get(inst->getAllocatedType());
-            cc->llvm_ir_builder->CreateStore(init_value, inst);
-        }
-
-        // last step - create return;
         cc->llvm_ir_builder->CreateRetVoid();
 
         // verify function
-        llvm::verifyFunction(*function);
+        std::string code_err;
+        llvm::raw_string_ostream ostream(code_err);
+        llvm::verifyFunction(*function, &ostream);
+
+        std::cout << "\n"
+                  << code_err << "\n";
 
         return function;
     }
 
-    DataType UnaryPlus::GetDataType()
+    DataType UnaryPlus::GetDataType(CompilerContext *cc)
     {
         if (expr == nullptr)
             return DataType::UNNOWN;
 
-        return expr->GetDataType();
+        return expr->GetDataType(cc);
     }
 
-    DataType UnaryMinus::GetDataType()
+    DataType UnaryMinus::GetDataType(CompilerContext *cc)
     {
         if (expr == nullptr)
             return DataType::UNNOWN;
 
-        return expr->GetDataType();
+        return expr->GetDataType(cc);
     }
 
-    DataType BooleanNOT::GetDataType()
+    DataType BooleanNOT::GetDataType(CompilerContext *cc)
     {
         if (expr == nullptr)
             return DataType::UNNOWN;
 
-        return expr->GetDataType();
+        return expr->GetDataType(cc);
     }
 
-    DataType Exponentiation::GetDataType()
+    DataType Exponentiation::GetDataType(CompilerContext *cc)
     {
         if (expr_l == nullptr)
             return DataType::UNNOWN;
@@ -380,8 +414,8 @@ namespace AST
         if (expr_r == nullptr)
             return DataType::UNNOWN;
 
-        DataType data_l = expr_l->GetDataType();
-        DataType data_r = expr_r->GetDataType();
+        DataType data_l = expr_l->GetDataType(cc);
+        DataType data_r = expr_r->GetDataType(cc);
 
         if (data_l != data_r)
             return DataType::UNNOWN;
@@ -389,7 +423,7 @@ namespace AST
         return data_l;
     }
 
-    DataType Multiply::GetDataType()
+    DataType Multiply::GetDataType(CompilerContext *cc)
     {
         if (expr_l == nullptr)
             return DataType::UNNOWN;
@@ -397,8 +431,8 @@ namespace AST
         if (expr_r == nullptr)
             return DataType::UNNOWN;
 
-        DataType data_l = expr_l->GetDataType();
-        DataType data_r = expr_r->GetDataType();
+        DataType data_l = expr_l->GetDataType(cc);
+        DataType data_r = expr_r->GetDataType(cc);
 
         if (data_l != data_r)
             return DataType::UNNOWN;
@@ -406,7 +440,7 @@ namespace AST
         return data_l;
     }
 
-    DataType Divide::GetDataType()
+    DataType Divide::GetDataType(CompilerContext *cc)
     {
         if (expr_l == nullptr)
             return DataType::UNNOWN;
@@ -414,8 +448,8 @@ namespace AST
         if (expr_r == nullptr)
             return DataType::UNNOWN;
 
-        DataType data_l = expr_l->GetDataType();
-        DataType data_r = expr_r->GetDataType();
+        DataType data_l = expr_l->GetDataType(cc);
+        DataType data_r = expr_r->GetDataType(cc);
 
         if (data_l != data_r)
             return DataType::UNNOWN;
@@ -423,7 +457,7 @@ namespace AST
         return data_l;
     }
 
-    DataType Modulo::GetDataType()
+    DataType Modulo::GetDataType(CompilerContext *cc)
     {
         if (expr_l == nullptr)
             return DataType::UNNOWN;
@@ -431,8 +465,8 @@ namespace AST
         if (expr_r == nullptr)
             return DataType::UNNOWN;
 
-        DataType data_l = expr_l->GetDataType();
-        DataType data_r = expr_r->GetDataType();
+        DataType data_l = expr_l->GetDataType(cc);
+        DataType data_r = expr_r->GetDataType(cc);
 
         if (data_l != data_r)
             return DataType::UNNOWN;
@@ -440,7 +474,7 @@ namespace AST
         return data_l;
     }
 
-    DataType Add::GetDataType()
+    DataType Add::GetDataType(CompilerContext *cc)
     {
         if (expr_l == nullptr)
             return DataType::UNNOWN;
@@ -448,8 +482,8 @@ namespace AST
         if (expr_r == nullptr)
             return DataType::UNNOWN;
 
-        DataType data_l = expr_l->GetDataType();
-        DataType data_r = expr_r->GetDataType();
+        DataType data_l = expr_l->GetDataType(cc);
+        DataType data_r = expr_r->GetDataType(cc);
 
         if (data_l != data_r)
             return DataType::UNNOWN;
@@ -457,7 +491,7 @@ namespace AST
         return data_l;
     }
 
-    DataType Subtract::GetDataType()
+    DataType Subtract::GetDataType(CompilerContext *cc)
     {
         if (expr_l == nullptr)
             return DataType::UNNOWN;
@@ -465,8 +499,8 @@ namespace AST
         if (expr_r == nullptr)
             return DataType::UNNOWN;
 
-        DataType data_l = expr_l->GetDataType();
-        DataType data_r = expr_r->GetDataType();
+        DataType data_l = expr_l->GetDataType(cc);
+        DataType data_r = expr_r->GetDataType(cc);
 
         if (data_l != data_r)
             return DataType::UNNOWN;
@@ -474,7 +508,7 @@ namespace AST
         return data_l;
     }
 
-    DataType GreaterThan::GetDataType()
+    DataType GreaterThan::GetDataType(CompilerContext *cc)
     {
         if (expr_l == nullptr)
             return DataType::UNNOWN;
@@ -482,8 +516,8 @@ namespace AST
         if (expr_r == nullptr)
             return DataType::UNNOWN;
 
-        DataType data_l = expr_l->GetDataType();
-        DataType data_r = expr_r->GetDataType();
+        DataType data_l = expr_l->GetDataType(cc);
+        DataType data_r = expr_r->GetDataType(cc);
 
         if (data_l != data_r)
             return DataType::UNNOWN;
@@ -491,7 +525,7 @@ namespace AST
         return DataType::BOOL;
     }
 
-    DataType LessThan::GetDataType()
+    DataType LessThan::GetDataType(CompilerContext *cc)
     {
         if (expr_l == nullptr)
             return DataType::UNNOWN;
@@ -499,8 +533,8 @@ namespace AST
         if (expr_r == nullptr)
             return DataType::UNNOWN;
 
-        DataType data_l = expr_l->GetDataType();
-        DataType data_r = expr_r->GetDataType();
+        DataType data_l = expr_l->GetDataType(cc);
+        DataType data_r = expr_r->GetDataType(cc);
 
         if (data_l != data_r)
             return DataType::UNNOWN;
@@ -508,7 +542,7 @@ namespace AST
         return DataType::BOOL;
     }
 
-    DataType GreaterOrEqual::GetDataType()
+    DataType GreaterOrEqual::GetDataType(CompilerContext *cc)
     {
         if (expr_l == nullptr)
             return DataType::UNNOWN;
@@ -516,8 +550,8 @@ namespace AST
         if (expr_r == nullptr)
             return DataType::UNNOWN;
 
-        DataType data_l = expr_l->GetDataType();
-        DataType data_r = expr_r->GetDataType();
+        DataType data_l = expr_l->GetDataType(cc);
+        DataType data_r = expr_r->GetDataType(cc);
 
         if (data_l != data_r)
             return DataType::UNNOWN;
@@ -525,7 +559,7 @@ namespace AST
         return DataType::BOOL;
     }
 
-    DataType LessOrEqual::GetDataType()
+    DataType LessOrEqual::GetDataType(CompilerContext *cc)
     {
         if (expr_l == nullptr)
             return DataType::UNNOWN;
@@ -533,8 +567,8 @@ namespace AST
         if (expr_r == nullptr)
             return DataType::UNNOWN;
 
-        DataType data_l = expr_l->GetDataType();
-        DataType data_r = expr_r->GetDataType();
+        DataType data_l = expr_l->GetDataType(cc);
+        DataType data_r = expr_r->GetDataType(cc);
 
         if (data_l != data_r)
             return DataType::UNNOWN;
@@ -542,7 +576,7 @@ namespace AST
         return DataType::BOOL;
     }
 
-    DataType Equality::GetDataType()
+    DataType Equality::GetDataType(CompilerContext *cc)
     {
         if (expr_l == nullptr)
             return DataType::UNNOWN;
@@ -550,8 +584,8 @@ namespace AST
         if (expr_r == nullptr)
             return DataType::UNNOWN;
 
-        DataType data_l = expr_l->GetDataType();
-        DataType data_r = expr_r->GetDataType();
+        DataType data_l = expr_l->GetDataType(cc);
+        DataType data_r = expr_r->GetDataType(cc);
 
         if (data_l != data_r)
             return DataType::UNNOWN;
@@ -559,7 +593,7 @@ namespace AST
         return DataType::BOOL;
     }
 
-    DataType Inequality::GetDataType()
+    DataType Inequality::GetDataType(CompilerContext *cc)
     {
         if (expr_l == nullptr)
             return DataType::UNNOWN;
@@ -567,8 +601,8 @@ namespace AST
         if (expr_r == nullptr)
             return DataType::UNNOWN;
 
-        DataType data_l = expr_l->GetDataType();
-        DataType data_r = expr_r->GetDataType();
+        DataType data_l = expr_l->GetDataType(cc);
+        DataType data_r = expr_r->GetDataType(cc);
 
         if (data_l != data_r)
             return DataType::UNNOWN;
@@ -576,7 +610,7 @@ namespace AST
         return DataType::BOOL;
     }
 
-    DataType BooleanAND::GetDataType()
+    DataType BooleanAND::GetDataType(CompilerContext *cc)
     {
         if (expr_l == nullptr)
             return DataType::UNNOWN;
@@ -584,8 +618,8 @@ namespace AST
         if (expr_r == nullptr)
             return DataType::UNNOWN;
 
-        DataType data_l = expr_l->GetDataType();
-        DataType data_r = expr_r->GetDataType();
+        DataType data_l = expr_l->GetDataType(cc);
+        DataType data_r = expr_r->GetDataType(cc);
 
         if (data_l != data_r)
             return DataType::UNNOWN;
@@ -593,7 +627,7 @@ namespace AST
         return data_l;
     }
 
-    DataType BooleanOR::GetDataType()
+    DataType BooleanOR::GetDataType(CompilerContext *cc)
     {
         if (expr_l == nullptr)
             return DataType::UNNOWN;
@@ -601,8 +635,8 @@ namespace AST
         if (expr_r == nullptr)
             return DataType::UNNOWN;
 
-        DataType data_l = expr_l->GetDataType();
-        DataType data_r = expr_r->GetDataType();
+        DataType data_l = expr_l->GetDataType(cc);
+        DataType data_r = expr_r->GetDataType(cc);
 
         if (data_l != data_r)
             return DataType::UNNOWN;
@@ -610,7 +644,7 @@ namespace AST
         return data_l;
     }
 
-    DataType BooleanXOR::GetDataType()
+    DataType BooleanXOR::GetDataType(CompilerContext *cc)
     {
         if (expr_l == nullptr)
             return DataType::UNNOWN;
@@ -618,18 +652,57 @@ namespace AST
         if (expr_r == nullptr)
             return DataType::UNNOWN;
 
-        DataType data_l = expr_l->GetDataType();
-        DataType data_r = expr_r->GetDataType();
+        DataType data_l = expr_l->GetDataType(cc);
+        DataType data_r = expr_r->GetDataType(cc);
 
         if (data_l != data_r)
             return DataType::UNNOWN;
 
         return data_l;
+    }
+
+    DataType Variable::GetDataType(CompilerContext *cc)
+    {
+        auto iter = cc->local_variables.find(name);
+        if (iter == cc->local_variables.end())
+        {
+            // Error - variable not defined
+            return DataType::UNNOWN;
+        }
+        CompilerContext::LocalVariable local_var = iter->second;
+        return local_var.data_type;
+    }
+
+    llvm::Value *GetValueFromLLVMPointer(CompilerContext *cc, llvm::Value *local_var, DataType type)
+    {
+        auto load = cc->llvm_ir_builder->CreateLoad(DataTypeToLLVMType(cc, type), local_var);
+        return load;
+    }
+
+    llvm::Value *GetValueFromLLVMPointerIfPointerType(CompilerContext *cc, llvm::Value *local_var, DataType type)
+    {
+        if (local_var->getType()->isPointerTy())
+        {
+            return GetValueFromLLVMPointer(cc, local_var, type);
+        }
+        else
+        {
+            return local_var;
+        }
     }
 
     llvm::Value *Variable::CodeGenLLVM(CompilerContext *cc)
     {
-        return nullptr; // this will throw error
+
+        auto iter = cc->local_variables.find(name);
+        if (iter == cc->local_variables.end())
+        {
+            // Error - variable not defined
+            return nullptr;
+        }
+        CompilerContext::LocalVariable local_var = iter->second;
+        // auto load = cc->llvm_ir_builder->CreateLoad(DataTypeToLLVMType(cc, local_var.data_type), local_var.llvm_alloca_instance);
+        return local_var.llvm_alloca_instance;
     }
 
     llvm::Value *LiteralSpecific::CodeGenLLVM(CompilerContext *cc)
@@ -667,18 +740,21 @@ namespace AST
 
     llvm::Value *UnaryPlus::CodeGenLLVM(CompilerContext *cc)
     {
-        DataType type = expr->GetDataType();
+        DataType type = expr->GetDataType(cc);
         if (type == DataType::BOOL)
         {
             // ERROR unnary plus is not alowed for float data type
         }
-        return expr->CodeGenLLVM(cc);
+        llvm::Value *val = expr->CodeGenLLVM(cc);
+        val = GetValueFromLLVMPointerIfPointerType(cc, val, type);
+        return val;
     }
 
     llvm::Value *UnaryMinus::CodeGenLLVM(CompilerContext *cc)
     {
-        DataType type = expr->GetDataType();
+        DataType type = expr->GetDataType(cc);
         llvm::Value *val = expr->CodeGenLLVM(cc);
+        val = GetValueFromLLVMPointerIfPointerType(cc, val, type);
         switch (type)
         {
         case DataType::BOOL:
@@ -718,8 +794,9 @@ namespace AST
 
     llvm::Value *BooleanNOT::CodeGenLLVM(CompilerContext *cc)
     {
-        DataType type = expr->GetDataType();
+        DataType type = expr->GetDataType(cc);
         llvm::Value *val = expr->CodeGenLLVM(cc);
+        val = GetValueFromLLVMPointerIfPointerType(cc, val, type);
         switch (type)
         {
         case DataType::BOOL:
@@ -761,11 +838,12 @@ namespace AST
 
     llvm::Value *Multiply::CodeGenLLVM(CompilerContext *cc)
     {
-        DataType type_l = expr_l->GetDataType();
-        DataType type_r = expr_r->GetDataType();
+        DataType type_l = expr_l->GetDataType(cc);
+        DataType type_r = expr_r->GetDataType(cc);
         llvm::Value *val_l = expr_l->CodeGenLLVM(cc);
         llvm::Value *val_r = expr_r->CodeGenLLVM(cc);
-
+        val_l = GetValueFromLLVMPointerIfPointerType(cc, val_l, type_l);
+        val_r = GetValueFromLLVMPointerIfPointerType(cc, val_r, type_r);
         if (type_l != type_r)
         {
             return nullptr;
@@ -805,11 +883,12 @@ namespace AST
 
     llvm::Value *Divide::CodeGenLLVM(CompilerContext *cc)
     {
-        DataType type_l = expr_l->GetDataType();
-        DataType type_r = expr_r->GetDataType();
+        DataType type_l = expr_l->GetDataType(cc);
+        DataType type_r = expr_r->GetDataType(cc);
         llvm::Value *val_l = expr_l->CodeGenLLVM(cc);
         llvm::Value *val_r = expr_r->CodeGenLLVM(cc);
-
+        val_l = GetValueFromLLVMPointerIfPointerType(cc, val_l, type_l);
+        val_r = GetValueFromLLVMPointerIfPointerType(cc, val_r, type_r);
         if (type_l != type_r)
         {
             return nullptr;
@@ -849,11 +928,12 @@ namespace AST
 
     llvm::Value *Modulo::CodeGenLLVM(CompilerContext *cc)
     {
-        DataType type_l = expr_l->GetDataType();
-        DataType type_r = expr_r->GetDataType();
+        DataType type_l = expr_l->GetDataType(cc);
+        DataType type_r = expr_r->GetDataType(cc);
         llvm::Value *val_l = expr_l->CodeGenLLVM(cc);
         llvm::Value *val_r = expr_r->CodeGenLLVM(cc);
-
+        val_l = GetValueFromLLVMPointerIfPointerType(cc, val_l, type_l);
+        val_r = GetValueFromLLVMPointerIfPointerType(cc, val_r, type_r);
         if (type_l != type_r)
         {
             return nullptr;
@@ -893,11 +973,12 @@ namespace AST
 
     llvm::Value *Add::CodeGenLLVM(CompilerContext *cc)
     {
-        DataType type_l = expr_l->GetDataType();
-        DataType type_r = expr_r->GetDataType();
+        DataType type_l = expr_l->GetDataType(cc);
+        DataType type_r = expr_r->GetDataType(cc);
         llvm::Value *val_l = expr_l->CodeGenLLVM(cc);
         llvm::Value *val_r = expr_r->CodeGenLLVM(cc);
-
+        val_l = GetValueFromLLVMPointerIfPointerType(cc, val_l, type_l);
+        val_r = GetValueFromLLVMPointerIfPointerType(cc, val_r, type_r);
         if (type_l != type_r)
         {
             return nullptr;
@@ -937,11 +1018,12 @@ namespace AST
 
     llvm::Value *Subtract::CodeGenLLVM(CompilerContext *cc)
     {
-        DataType type_l = expr_l->GetDataType();
-        DataType type_r = expr_r->GetDataType();
+        DataType type_l = expr_l->GetDataType(cc);
+        DataType type_r = expr_r->GetDataType(cc);
         llvm::Value *val_l = expr_l->CodeGenLLVM(cc);
         llvm::Value *val_r = expr_r->CodeGenLLVM(cc);
-
+        val_l = GetValueFromLLVMPointerIfPointerType(cc, val_l, type_l);
+        val_r = GetValueFromLLVMPointerIfPointerType(cc, val_r, type_r);
         if (type_l != type_r)
         {
             return nullptr;
@@ -981,11 +1063,12 @@ namespace AST
 
     llvm::Value *GreaterThan::CodeGenLLVM(CompilerContext *cc)
     {
-        DataType type_l = expr_l->GetDataType();
-        DataType type_r = expr_r->GetDataType();
+        DataType type_l = expr_l->GetDataType(cc);
+        DataType type_r = expr_r->GetDataType(cc);
         llvm::Value *val_l = expr_l->CodeGenLLVM(cc);
         llvm::Value *val_r = expr_r->CodeGenLLVM(cc);
-
+        val_l = GetValueFromLLVMPointerIfPointerType(cc, val_l, type_l);
+        val_r = GetValueFromLLVMPointerIfPointerType(cc, val_r, type_r);
         if (type_l != type_r)
         {
             return nullptr;
@@ -1025,11 +1108,12 @@ namespace AST
 
     llvm::Value *LessThan::CodeGenLLVM(CompilerContext *cc)
     {
-        DataType type_l = expr_l->GetDataType();
-        DataType type_r = expr_r->GetDataType();
+        DataType type_l = expr_l->GetDataType(cc);
+        DataType type_r = expr_r->GetDataType(cc);
         llvm::Value *val_l = expr_l->CodeGenLLVM(cc);
         llvm::Value *val_r = expr_r->CodeGenLLVM(cc);
-
+        val_l = GetValueFromLLVMPointerIfPointerType(cc, val_l, type_l);
+        val_r = GetValueFromLLVMPointerIfPointerType(cc, val_r, type_r);
         if (type_l != type_r)
         {
             return nullptr;
@@ -1069,11 +1153,12 @@ namespace AST
 
     llvm::Value *GreaterOrEqual::CodeGenLLVM(CompilerContext *cc)
     {
-        DataType type_l = expr_l->GetDataType();
-        DataType type_r = expr_r->GetDataType();
+        DataType type_l = expr_l->GetDataType(cc);
+        DataType type_r = expr_r->GetDataType(cc);
         llvm::Value *val_l = expr_l->CodeGenLLVM(cc);
         llvm::Value *val_r = expr_r->CodeGenLLVM(cc);
-
+        val_l = GetValueFromLLVMPointerIfPointerType(cc, val_l, type_l);
+        val_r = GetValueFromLLVMPointerIfPointerType(cc, val_r, type_r);
         if (type_l != type_r)
         {
             return nullptr;
@@ -1113,11 +1198,12 @@ namespace AST
 
     llvm::Value *LessOrEqual::CodeGenLLVM(CompilerContext *cc)
     {
-        DataType type_l = expr_l->GetDataType();
-        DataType type_r = expr_r->GetDataType();
+        DataType type_l = expr_l->GetDataType(cc);
+        DataType type_r = expr_r->GetDataType(cc);
         llvm::Value *val_l = expr_l->CodeGenLLVM(cc);
         llvm::Value *val_r = expr_r->CodeGenLLVM(cc);
-
+        val_l = GetValueFromLLVMPointerIfPointerType(cc, val_l, type_l);
+        val_r = GetValueFromLLVMPointerIfPointerType(cc, val_r, type_r);
         if (type_l != type_r)
         {
             return nullptr;
@@ -1157,11 +1243,12 @@ namespace AST
 
     llvm::Value *Equality::CodeGenLLVM(CompilerContext *cc)
     {
-        DataType type_l = expr_l->GetDataType();
-        DataType type_r = expr_r->GetDataType();
+        DataType type_l = expr_l->GetDataType(cc);
+        DataType type_r = expr_r->GetDataType(cc);
         llvm::Value *val_l = expr_l->CodeGenLLVM(cc);
         llvm::Value *val_r = expr_r->CodeGenLLVM(cc);
-
+        val_l = GetValueFromLLVMPointerIfPointerType(cc, val_l, type_l);
+        val_r = GetValueFromLLVMPointerIfPointerType(cc, val_r, type_r);
         if (type_l != type_r)
         {
             return nullptr;
@@ -1201,11 +1288,12 @@ namespace AST
 
     llvm::Value *Inequality::CodeGenLLVM(CompilerContext *cc)
     {
-        DataType type_l = expr_l->GetDataType();
-        DataType type_r = expr_r->GetDataType();
+        DataType type_l = expr_l->GetDataType(cc);
+        DataType type_r = expr_r->GetDataType(cc);
         llvm::Value *val_l = expr_l->CodeGenLLVM(cc);
         llvm::Value *val_r = expr_r->CodeGenLLVM(cc);
-
+        val_l = GetValueFromLLVMPointerIfPointerType(cc, val_l, type_l);
+        val_r = GetValueFromLLVMPointerIfPointerType(cc, val_r, type_r);
         if (type_l != type_r)
         {
             return nullptr;
@@ -1245,11 +1333,12 @@ namespace AST
 
     llvm::Value *BooleanAND::CodeGenLLVM(CompilerContext *cc)
     {
-        DataType type_l = expr_l->GetDataType();
-        DataType type_r = expr_r->GetDataType();
+        DataType type_l = expr_l->GetDataType(cc);
+        DataType type_r = expr_r->GetDataType(cc);
         llvm::Value *val_l = expr_l->CodeGenLLVM(cc);
         llvm::Value *val_r = expr_r->CodeGenLLVM(cc);
-
+        val_l = GetValueFromLLVMPointerIfPointerType(cc, val_l, type_l);
+        val_r = GetValueFromLLVMPointerIfPointerType(cc, val_r, type_r);
         if (type_l != type_r)
         {
             return nullptr;
@@ -1289,11 +1378,12 @@ namespace AST
 
     llvm::Value *BooleanOR::CodeGenLLVM(CompilerContext *cc)
     {
-        DataType type_l = expr_l->GetDataType();
-        DataType type_r = expr_r->GetDataType();
+        DataType type_l = expr_l->GetDataType(cc);
+        DataType type_r = expr_r->GetDataType(cc);
         llvm::Value *val_l = expr_l->CodeGenLLVM(cc);
         llvm::Value *val_r = expr_r->CodeGenLLVM(cc);
-
+        val_l = GetValueFromLLVMPointerIfPointerType(cc, val_l, type_l);
+        val_r = GetValueFromLLVMPointerIfPointerType(cc, val_r, type_r);
         if (type_l != type_r)
         {
             return nullptr;
@@ -1333,11 +1423,12 @@ namespace AST
 
     llvm::Value *BooleanXOR::CodeGenLLVM(CompilerContext *cc)
     {
-        DataType type_l = expr_l->GetDataType();
-        DataType type_r = expr_r->GetDataType();
+        DataType type_l = expr_l->GetDataType(cc);
+        DataType type_r = expr_r->GetDataType(cc);
         llvm::Value *val_l = expr_l->CodeGenLLVM(cc);
         llvm::Value *val_r = expr_r->CodeGenLLVM(cc);
-
+        val_l = GetValueFromLLVMPointerIfPointerType(cc, val_l, type_l);
+        val_r = GetValueFromLLVMPointerIfPointerType(cc, val_r, type_r);
         if (type_l != type_r)
         {
             return nullptr;
@@ -1374,4 +1465,31 @@ namespace AST
 
         return nullptr; // this will throw error
     }
+
+    void AssignmentStatement::CodeGenLLVM(CompilerContext *cc)
+    {
+        DataType type_l = expr_l->GetDataType(cc);
+        DataType type_r = expr_r->GetDataType(cc);
+
+        llvm::Value *l_value = expr_l->CodeGenLLVM(cc);
+        llvm::Value *r_value = expr_r->CodeGenLLVM(cc);
+
+        if (type_l != type_r)
+        {
+            // Error case - incorrect data type
+        }
+
+        cc->llvm_ir_builder->CreateStore(r_value, l_value);
+    };
+    void ExprStatement::CodeGenLLVM(CompilerContext *cc)
+    {
+        // expression statement
+        // result not assigned to anything
+        expr->CodeGenLLVM(cc);
+    };
+    void EmptyStatement::CodeGenLLVM(CompilerContext *cc) {
+        // empty statement:
+        // do nothing
+    };
+
 }

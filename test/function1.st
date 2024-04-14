@@ -10,7 +10,7 @@ VAR_INPUT
 END_VAR
 
 VAR_IN_OUT
-    b1: BOOL;
+    b1: REAL;
 END_VAR
 
 VAR_OUTPUT
@@ -22,8 +22,9 @@ VAR
     c: INT := INT#16#100;
 END_VAR
 
-test_func := REAL#0.123;
-x := - a + b + c;
+test_func := BOOL#1;
+x := - aaa + b + c1;
+b1 := b1 + REAL#0.1;
 
 
 END_FUNCTION
