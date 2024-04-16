@@ -98,6 +98,6 @@
     "C_Cpp.markdownInComments": "enabled",
     "cmake.debugConfig": {
         "cwd": "${workspaceFolder}",
-        "args": [".\\test\\function1.st", "--verbose"]
+        "args": [".\\test\\function1.st", "--verbose", "--output-c-header", "./__file.h", "-o", "./__file.ll"]
     }
 }

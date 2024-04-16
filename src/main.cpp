@@ -94,12 +94,16 @@ int main(int argc, char **argv)
         std::cout << Console::FgBrightYellow("[Warning]: ") << "No output file specified\n";
     }else{
         // output code to file
+        std::string output_file_path = args_parser.GetFlags().at(ArgumentParser::Flags::Output);
+        std::string output_content = cc.IR_ToString();
+        bool is_ok = WriteFileContent(output_file_path, output_content);
     }
 
-    
-    if (args_parser.HaveFlag(ArgumentParser::Flags::Output))
+    if (args_parser.HaveFlag(ArgumentParser::Flags::OutputCHeader))
     {
-        // output c/c++ header file
+        std::string c_header_file_path = args_parser.GetFlags().at(ArgumentParser::Flags::OutputCHeader);
+        std::string c_header_content = pou_list[0]->CodeGenCHeader();
+        bool is_ok = WriteFileContent(c_header_file_path, c_header_content);
     }
 
     return 0;

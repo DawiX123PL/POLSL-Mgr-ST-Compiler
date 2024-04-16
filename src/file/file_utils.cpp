@@ -36,6 +36,30 @@ bool ReadFileContent(std::string file_name, std::string *result)
     return true;
 }
 
+bool WriteFileContent(std::string file_name, const std::string &file_content)
+{
+    try
+    {
+        std::fstream file(file_name, std::ios::out | std::ios::binary);
+
+        if (!file.good())
+        {
+            return false;
+        }
+
+        file.write(file_content.c_str(), file_content.size());
+        file.close();
+
+        return true;
+    }
+    catch (...)
+    {
+        return false;
+    }
+
+    return true;
+}
+
 void PrintFileContent(std::string file_content)
 {
     constexpr int iter_hardlimit = 10000;
