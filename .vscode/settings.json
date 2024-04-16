@@ -97,6 +97,7 @@
     "cmake.configureOnOpen": true,
     "C_Cpp.markdownInComments": "enabled",
     "cmake.debugConfig": {
-        "cwd": "${workspaceFolder}"
+        "cwd": "${workspaceFolder}",
+        "args": [".\\test\\function1.st", "--verbose"]
     }
 }

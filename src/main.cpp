@@ -8,40 +8,52 @@
 int main(int argc, char **argv)
 {
 
-    std::map<ArgFlag, std::string> args = ArgsToMap(argc, argv);
+    ArgumentParser args_parser;
+    args_parser.Parse(argc, argv);
 
-    if (IsArgsContain(args, ArgFlag::Verbose))
+    if (args_parser.GetFreeArguments().size() == 0)
     {
-        PrintArgs(args);
-    }
-
-    std::string file_name = "./test/function1.st";
-    // std::string file_name = "../test/function1.st";
-    
-    std::string file_content;
-    bool isok = ReadFileContent(file_name, &file_content);
-
-    if (!isok)
-    {
-        std::cout << Console::FgBrightRed("[Error]: ") << "cannot read file: " + file_name << "\n";
+        std::cout << Console::FgBrightRed("[Error]: ") << "No input files\n";
         return -1;
     }
 
-    PrintFileContent(file_content);
+    if (args_parser.GetFreeArguments().size() == 0)
+    {
+        std::cout << Console::FgBrightYellow("[Warning]: ") << "More than one file provided. Ignoring extra files\n";
+    }
+
+    std::string input_file_name = args_parser.GetFreeArguments().front();
+
+    std::string file_content;
+    bool isok = ReadFileContent(input_file_name, &file_content);
+
+    if (!isok)
+    {
+        std::cout << Console::FgBrightRed("[Error]: ") << "cannot read file: \"" + input_file_name << "\" \n";
+        return -1;
+    }
+
+    if (args_parser.HaveFlag(ArgumentParser::Flags::Verbose))
+    {
+        PrintFileContent(file_content);
+    }
 
     std::vector<Lexer::Token> token_list;
     ErrorList_t err;
     err = Lexer::Tokenize(file_content, &token_list);
 
-    std::cout << Console::FgBrightBlue("[TOKEN COUNT]: ") << token_list.size() << "\n";
-    for (int i = 0; i < token_list.size(); i++)
+    if (args_parser.HaveFlag(ArgumentParser::Flags::Verbose))
     {
-        std::cout << Console::FgBrightBlue("[TOKEN]: ") << token_list[i].ToString() << "\n";
-    }
+        std::cout << Console::FgBrightBlue("[TOKEN COUNT]: ") << token_list.size() << "\n";
+        for (int i = 0; i < token_list.size(); i++)
+        {
+            std::cout << Console::FgBrightBlue("[TOKEN]: ") << token_list[i].ToString() << "\n";
+        }
 
-    for (int i = 0; i < err.size(); i++)
-    {
-        std::cout << Console::FgBrightRed("[Error]: ") << err[i].ToString() << "\n";
+        for (int i = 0; i < err.size(); i++)
+        {
+            std::cout << Console::FgBrightRed("[Error]: ") << err[i].ToString() << "\n";
+        }
     }
 
     // AST::Function function;
@@ -55,26 +67,40 @@ int main(int argc, char **argv)
     }
 
     AST::CompilerContext cc;
-
     llvm::Function *fn = pou_list[0]->CodeGenLLVM(&cc);
 
-    std::cout
-        << Console::FgDarkGreen("[-------------------------------------------]: \n")
-        << Console::FgDarkGreen("[Generated IR code]: \n")
-        << cc.IR_ToString()
-        << Console::FgDarkGreen("[End of Generated IR code]: \n")
-        << Console::FgDarkGreen("[-------------------------------------------]: \n")
-        << "\n";
+    if (args_parser.HaveFlag(ArgumentParser::Flags::Verbose))
+    {
+        std::cout
+            << Console::FgDarkGreen("[-------------------------------------------]: \n")
+            << Console::FgDarkGreen("[Generated IR code]: \n")
+            << cc.IR_ToString()
+            << Console::FgDarkGreen("[End of Generated IR code]: \n")
+            << Console::FgDarkGreen("[-------------------------------------------]: \n")
+            << "\n";
 
-    std::cout
-        << Console::FgDarkGreen("[-------------------------------------------]: \n")
-        << Console::FgDarkGreen("[Generated C/C++ header file]: \n")
-        << pou_list[0]->CodeGenCHeader()
-        << Console::FgDarkGreen("[End of Generated C/C++ header file]: \n")
-        << Console::FgDarkGreen("[-------------------------------------------]: \n")
-        << "\n";
-
+        std::cout
+            << Console::FgDarkGreen("[-------------------------------------------]: \n")
+            << Console::FgDarkGreen("[Generated C/C++ header file]: \n")
+            << pou_list[0]->CodeGenCHeader()
+            << Console::FgDarkGreen("[End of Generated C/C++ header file]: \n")
+            << Console::FgDarkGreen("[-------------------------------------------]: \n")
+            << "\n";
+    }
     // function.Evaluate();
+
+    if (!args_parser.HaveFlag(ArgumentParser::Flags::Output))
+    {
+        std::cout << Console::FgBrightYellow("[Warning]: ") << "No output file specified\n";
+    }else{
+        // output code to file
+    }
+
+    
+    if (args_parser.HaveFlag(ArgumentParser::Flags::Output))
+    {
+        // output c/c++ header file
+    }
 
     return 0;
 }
