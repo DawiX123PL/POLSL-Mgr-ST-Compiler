@@ -2,7 +2,7 @@
 #include <iostream>
 #include "lexer/st_lexer.hpp"
 #include "file/file_utils.hpp"
-#include "console/argument_parser.hpp"
+#include "console/command_line_parser.hpp"
 #include "parser/parser.hpp"
 
 

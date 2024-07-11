@@ -3,8 +3,7 @@ project(st_compiler)
 
 # source files 
 set(SOURCES   
-    src/console/argument_parser.cpp 
-    src/console/argument_parser.hpp 
+    src/console/command_line_parser.hpp
     src/console/color.cpp 
     src/console/color.hpp
     src/file/file_utils.cpp 
