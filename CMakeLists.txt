@@ -42,4 +42,38 @@ set_property(TARGET st_compiler PROPERTY CXX_STANDARD 17)
 set_property(TARGET st_compiler PROPERTY CXX_STANDARD_REQUIRED ON)
 set_property(TARGET st_compiler PROPERTY CMAKE_CXX_EXTENSIONS Off)
 
-target_compile_options(st_compiler PRIVATE /MD  /JMC)
+if ( MSVC )
+    target_compile_options(st_compiler PRIVATE /MD  /JMC)
+endif ( MSVC )
+
+
+# change default out dir
+set_target_properties( st_compiler
+    PROPERTIES
+    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/build/"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/build/"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/build/"
+)
+
+# trick from https://stackoverflow.com/questions/7747857/in-cmake-how-do-i-work-around-the-debug-and-release-directories-visual-studio-2
+# prevents creating Debug and Release directories
+if ( MSVC )
+
+
+	set_target_properties( st_compiler
+		PROPERTIES
+		ARCHIVE_OUTPUT_DIRECTORY           "${CMAKE_BINARY_DIR}/build/"
+		ARCHIVE_OUTPUT_DIRECTORY_DEBUG     "${CMAKE_BINARY_DIR}/build/"
+		ARCHIVE_OUTPUT_DIRECTORY_RELEASE   "${CMAKE_BINARY_DIR}/build/"
+		LIBRARY_OUTPUT_DIRECTORY           "${CMAKE_BINARY_DIR}/build/"
+		LIBRARY_OUTPUT_DIRECTORY_DEBUG     "${CMAKE_BINARY_DIR}/build/"
+		LIBRARY_OUTPUT_DIRECTORY_RELEASE   "${CMAKE_BINARY_DIR}/build/"
+		RUNTIME_OUTPUT_DIRECTORY           "${CMAKE_BINARY_DIR}/build/"
+		RUNTIME_OUTPUT_DIRECTORY_DEBUG     "${CMAKE_BINARY_DIR}/build/"
+		RUNTIME_OUTPUT_DIRECTORY_RELEASE   "${CMAKE_BINARY_DIR}/build/"
+	)
+
+endif ( MSVC )
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "") # works
+

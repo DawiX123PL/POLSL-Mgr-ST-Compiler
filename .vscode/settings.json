@@ -93,11 +93,20 @@
         "iomanip": "cpp",
         "xhash": "cpp"
     },
-    "explorer.excludeGitIgnore": true,
-    "cmake.configureOnOpen": true,
+    "explorer.excludeGitIgnore": false,
+    "cmake.configureOnOpen": false,
     "C_Cpp.markdownInComments": "enabled",
     "cmake.debugConfig": {
         "cwd": "${workspaceFolder}",
-        "args": [".\\test\\function1.st", "--verbose", "--output-c-header", "./__file.h", "-o", "./__file.ll"]
-    }
+        "args": [
+            ".\\test\\test1\\function1.st",
+            ".\\test\\test1\\fahrenheit_to_celsius.st",
+            "--verbose",
+            "--output-c-header",
+            ".\\test\\test1\\__file.h",
+            "-o",
+            ".\\test\\test1\\__file.ll"
+        ]
+    },
+    "autoHide.autoHideSideBar": false
 }
