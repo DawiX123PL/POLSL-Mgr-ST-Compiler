@@ -5,24 +5,44 @@
 #include "console/argument_parser.hpp"
 #include "parser/parser.hpp"
 
-int main(int argc, char **argv)
+
+enum class CommandLineFlags : unsigned int
+{
+    HELP,
+    OUTPUT_FILE,
+    VERBOSE,
+    OUTPUT_C_HEADER,
+};
+
+
+void RegisterCommands(CommandLineParser<CommandLineFlags> *command_line)
+{
+    command_line->RegisterFlag(CommandLineFlags::HELP, 0, {"-h", "--help"});
+    command_line->RegisterFlag(CommandLineFlags::OUTPUT_FILE, 1, {"-o"});
+    command_line->RegisterFlag(CommandLineFlags::VERBOSE, 0, {"-v", "--verbose"});
+    command_line->RegisterFlag(CommandLineFlags::OUTPUT_C_HEADER, 1, {"--output-c-header"});
+}
+
+
+int main(int argc, char const *argv[])
 {
 
-    ArgumentParser args_parser;
-    args_parser.Parse(argc, argv);
+    CommandLineParser<CommandLineFlags> command_line;
+    RegisterCommands(&command_line);
+    command_line.Parse(argc, argv);
 
-    if (args_parser.GetFreeArguments().size() == 0)
+    if (command_line.GetFiles().size() == 0)
     {
         std::cout << Console::FgBrightRed("[Error]: ") << "No input files\n";
         return -1;
     }
 
-    if (args_parser.GetFreeArguments().size() == 0)
+    if (command_line.GetFiles().size() != 1)
     {
         std::cout << Console::FgBrightYellow("[Warning]: ") << "More than one file provided. Ignoring extra files\n";
     }
 
-    std::string input_file_name = args_parser.GetFreeArguments().front();
+    std::string input_file_name = command_line.GetFiles().front();
 
     std::string file_content;
     bool isok = ReadFileContent(input_file_name, &file_content);
@@ -33,7 +53,7 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    if (args_parser.HaveFlag(ArgumentParser::Flags::Verbose))
+    if (command_line.IsFlagUsed(CommandLineFlags::VERBOSE))
     {
         PrintFileContent(file_content);
     }
@@ -42,7 +62,7 @@ int main(int argc, char **argv)
     ErrorList_t err;
     err = Lexer::Tokenize(file_content, &token_list);
 
-    if (args_parser.HaveFlag(ArgumentParser::Flags::Verbose))
+    if (command_line.IsFlagUsed(CommandLineFlags::VERBOSE))
     {
         std::cout << Console::FgBrightBlue("[TOKEN COUNT]: ") << token_list.size() << "\n";
         for (int i = 0; i < token_list.size(); i++)
@@ -69,7 +89,7 @@ int main(int argc, char **argv)
     AST::CompilerContext cc;
     llvm::Function *fn = pou_list[0]->CodeGenLLVM(&cc);
 
-    if (args_parser.HaveFlag(ArgumentParser::Flags::Verbose))
+    if (command_line.IsFlagUsed(CommandLineFlags::VERBOSE))
     {
         std::cout
             << Console::FgDarkGreen("[-------------------------------------------]: \n")
@@ -89,19 +109,19 @@ int main(int argc, char **argv)
     }
     // function.Evaluate();
 
-    if (!args_parser.HaveFlag(ArgumentParser::Flags::Output))
+    if (!command_line.IsFlagUsed(CommandLineFlags::OUTPUT_FILE))
     {
         std::cout << Console::FgBrightYellow("[Warning]: ") << "No output file specified\n";
     }else{
-        // output code to file
-        std::string output_file_path = args_parser.GetFlags().at(ArgumentParser::Flags::Output);
+        // output code to file        
+        std::string output_file_path = command_line.GetFlagArgs(CommandLineFlags::OUTPUT_FILE).front();
         std::string output_content = cc.IR_ToString();
         bool is_ok = WriteFileContent(output_file_path, output_content);
     }
 
-    if (args_parser.HaveFlag(ArgumentParser::Flags::OutputCHeader))
+    if (command_line.IsFlagUsed(CommandLineFlags::OUTPUT_C_HEADER))
     {
-        std::string c_header_file_path = args_parser.GetFlags().at(ArgumentParser::Flags::OutputCHeader);
+        std::string c_header_file_path = command_line.GetFlagArgs(CommandLineFlags::OUTPUT_C_HEADER).front();
         std::string c_header_content = pou_list[0]->CodeGenCHeader();
         bool is_ok = WriteFileContent(c_header_file_path, c_header_content);
     }
