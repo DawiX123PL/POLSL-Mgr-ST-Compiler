@@ -1,5 +1,6 @@
 #include <string>
 #include <iostream>
+#include "error.hpp"
 #include "lexer/st_lexer.hpp"
 #include "file/file_utils.hpp"
 #include "console/command_line_parser.hpp"
@@ -59,7 +60,7 @@ int main(int argc, char const *argv[])
     }
 
     std::vector<Lexer::Token> token_list;
-    ErrorList_t err;
+    Error::ErrorList_t err;
     err = Lexer::Tokenize(file_content, &token_list);
 
     if (command_line.IsFlagUsed(CommandLineFlags::VERBOSE))
@@ -72,7 +73,7 @@ int main(int argc, char const *argv[])
 
         for (int i = 0; i < err.size(); i++)
         {
-            std::cout << Console::FgBrightRed("[Error]: ") << err[i].ToString() << "\n";
+            std::cout << Console::FgBrightRed("[Error]: ") << err[i]->ToString() << "\n";
         }
     }
 
@@ -83,7 +84,7 @@ int main(int argc, char const *argv[])
 
     for (int i = 0; i < err.size(); i++)
     {
-        std::cout << Console::FgBrightRed("[Error]: ") << err[i].ToString() << "\n";
+        std::cout << Console::FgBrightRed("[Error]: ") << err[i]->ToString() << "\n";
     }
 
     AST::CompilerContext cc;

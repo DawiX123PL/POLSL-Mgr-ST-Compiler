@@ -10,6 +10,8 @@ set(SOURCES
     src/file/file_utils.hpp
     src/lexer/st_lexer.cpp 
     src/lexer/st_lexer.hpp
+    src/lexer/st_token_type.cpp
+    src/lexer/st_token_type.hpp
     src/parser/parser.cpp 
     src/parser/parser.hpp
     src/ast/ast.hpp 

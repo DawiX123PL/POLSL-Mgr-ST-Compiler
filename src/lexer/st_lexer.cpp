@@ -14,14 +14,14 @@ namespace Lexer
     struct StringAndPos
     {
         std::string str;
-        Pos pos;
-        StringAndPos(std::string _str, Pos _pos) : str(_str), pos(_pos){};
+        Position pos;
+        StringAndPos(std::string _str, Position _pos) : str(_str), pos(_pos){};
     };
 
     // **********************************************************************************************************************************************
     // Declarations
     bool IsSubstrAtPos(const std::string &code, int pos, char *sub_str);
-    std::vector<Error> SplitToSubstrings(const std::string &code, std::vector<StringAndPos> *tokens_str);
+    Error::ErrorList_t SplitToSubstrings(const std::string &code, std::vector<StringAndPos> *tokens_str);
     void SplitConsecutiveOperators(const std::string &code, std::vector<std::string> *oper_list);
     bool TryCategoriseKeywordToken(std::string str, Token *token);
     bool TryCategoriseNumericLiterals(std::string str, Token *token);
@@ -34,10 +34,10 @@ namespace Lexer
     // **********************************************************************************************************************************************
     // Definitions
 
-    std::vector<Error> Tokenize(const std::string &code, std::vector<Token> *token_list)
+    Error::ErrorList_t Tokenize(const std::string &code, std::vector<Token> *token_list)
     {
 
-        std::vector<Error> err_list;
+        Error::ErrorList_t err_list;
         std::vector<StringAndPos> tokens_str;
 
         err_list = SplitToSubstrings(code, &tokens_str);
@@ -115,24 +115,8 @@ namespace Lexer
         return false;
     }
 
-    const char *TokenTypeToString(TokenType type)
-    {
-        constexpr int count = sizeof(tokentype_names_list) / sizeof(tokentype_names_list[0]);
-        for (int i = 0; i < count; i++)
-        {
-            TokenType t = tokentype_names_list[i].second;
-
-            if (t == type)
-            {
-                return tokentype_names_list[i].first;
-            }
-        }
-
-        return "UNNOWN";
-    }
-
     // TODO comments
-    std::vector<Error> SplitToSubstrings(const std::string &_code, std::vector<StringAndPos> *tokens_str)
+    Error::ErrorList_t SplitToSubstrings(const std::string &_code, std::vector<StringAndPos> *tokens_str)
     {
 
         const std::string &code = _code + ' ';
@@ -145,8 +129,8 @@ namespace Lexer
 
         int begining_index = 0;
 
-        Pos begining_pos = Pos(1, 0);
-        Pos current_pos = Pos(1, 0);
+        Position begining_pos = Position(1, 0);
+        Position current_pos = Position(1, 0);
 
         for (int current_index = 0; current_index < code.size(); current_index++)
         {
@@ -242,7 +226,7 @@ namespace Lexer
 
                 SplitConsecutiveOperators(operators_str, &operator_list);
 
-                Pos operator_pos = current_pos;
+                Position operator_pos = current_pos;
 
                 for (int j = 0; j < operator_list.size(); j++)
                 {
@@ -277,7 +261,7 @@ namespace Lexer
 
                 SplitConsecutiveOperators(operators_str, &operator_list);
 
-                Pos operator_pos = begining_pos;
+                Position operator_pos = begining_pos;
 
                 for (int j = 0; j < operator_list.size(); j++)
                 {
@@ -292,11 +276,9 @@ namespace Lexer
             }
 
             //////////////////////////////////////////////////////////////////////
-
-            return {
-                Error(Error::ErrorType::UNEXPECTED_SYMBOL, "Unexpected symbol at position " +
-                                                               current_pos.ToStringLong() +
-                                                               " (Symbol: \'" + std::string(1, curr) + "\'; ASCI code:" + std::to_string(curr) + ")")};
+            Error::ErrorList_t err;
+            Error::PushError(err, Error::UnexpectedSymbolError(current_pos, curr));
+            return err;
         }
 
         return {};

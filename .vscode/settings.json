@@ -99,7 +99,7 @@
     "cmake.debugConfig": {
         "cwd": "${workspaceFolder}",
         "args": [
-            ".\\test\\test1\\function1.st",
+            ".\\test\\test1\\test_func.st",
             ".\\test\\test1\\fahrenheit_to_celsius.st",
             "--verbose",
             "--output-c-header",
