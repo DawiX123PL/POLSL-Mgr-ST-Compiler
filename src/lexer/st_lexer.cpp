@@ -21,7 +21,7 @@ namespace Lexer
     // **********************************************************************************************************************************************
     // Declarations
     bool IsSubstrAtPos(const std::string &code, int pos, char *sub_str);
-    Error::ErrorList_t SplitToSubstrings(const std::string &code, std::vector<StringAndPos> *tokens_str);
+    void SplitToSubstrings(Error::ErrorList_t &err, const std::string &_code, std::vector<StringAndPos> *tokens_str);
     void SplitConsecutiveOperators(const std::string &code, std::vector<std::string> *oper_list);
     bool TryCategoriseKeywordToken(std::string str, Token *token);
     bool TryCategoriseNumericLiterals(std::string str, Token *token);
@@ -34,22 +34,35 @@ namespace Lexer
     // **********************************************************************************************************************************************
     // Definitions
 
-    Error::ErrorList_t Tokenize(const std::string &code, std::vector<Token> *token_list)
+    std::vector<TokenList> TokenizeFiles(Error::ErrorList_t &err, const std::vector<File> files)
     {
 
-        Error::ErrorList_t err_list;
+        std::vector<TokenList> token_list;
+
+        for (int i = 0; i < files.size(); i++)
+        {
+            token_list.push_back({});
+            token_list.back() = Tokenize(err, files[i].content);
+        }
+
+        return token_list;
+    }
+
+    TokenList Tokenize(Error::ErrorList_t &err, const std::string &code)
+    {
+
         std::vector<StringAndPos> tokens_str;
 
-        err_list = SplitToSubstrings(code, &tokens_str);
+        SplitToSubstrings(err, code, &tokens_str);
 
-        token_list->clear();
-        token_list->resize(tokens_str.size());
+        TokenList token_list;
+        token_list.resize(tokens_str.size());
 
         // categorise tokens
         for (int i = 0; i < tokens_str.size(); i++)
         {
             std::string str = tokens_str[i].str;
-            Token *token = &(*token_list)[i];
+            Token *token = &token_list[i];
 
             if (TryCategoriseKeywordToken(str, token))
             {
@@ -67,14 +80,14 @@ namespace Lexer
         // copy position and string from code to new tokens
         for (int i = 0; i < tokens_str.size(); i++)
         {
-            (*token_list)[i].str = tokens_str[i].str;
-            (*token_list)[i].pos = tokens_str[i].pos;
+            token_list[i].str = tokens_str[i].str;
+            token_list[i].pos = tokens_str[i].pos;
         }
 
-        return err_list;
+        return token_list;
     }
 
-    bool TryCategoriseKeywordToken(std::string str, Token *token)
+    static bool TryCategoriseKeywordToken(std::string str, Token *token)
     {
         constexpr int keywords_list_size = sizeof(keywords_list) / sizeof(keywords_list[0]);
         for (int i = 0; i < keywords_list_size; i++)
@@ -93,7 +106,7 @@ namespace Lexer
         return false;
     }
 
-    bool TryCategoriseNumericLiterals(std::string str, Token *token)
+    static bool TryCategoriseNumericLiterals(std::string str, Token *token)
     {
         // true if first char is numeric
         if (IsNumericChar(str[0]))
@@ -116,7 +129,7 @@ namespace Lexer
     }
 
     // TODO comments
-    Error::ErrorList_t SplitToSubstrings(const std::string &_code, std::vector<StringAndPos> *tokens_str)
+    static void SplitToSubstrings(Error::ErrorList_t &err, const std::string &_code, std::vector<StringAndPos> *tokens_str)
     {
 
         const std::string &code = _code + ' ';
@@ -276,15 +289,14 @@ namespace Lexer
             }
 
             //////////////////////////////////////////////////////////////////////
-            Error::ErrorList_t err;
             Error::PushError(err, Error::UnexpectedSymbolError(current_pos, curr));
-            return err;
+            return;
         }
 
-        return {};
+        return;
     }
 
-    void SplitConsecutiveOperators(const std::string &code, std::vector<std::string> *oper_list)
+    static void SplitConsecutiveOperators(const std::string &code, std::vector<std::string> *oper_list)
     {
         constexpr char operator_set[][3] = {":=", "**", ">=", "<=", "<>", "(", ")", "^", "-", "+", "*", "/", ">", "<", "=", "&", ":", ";", ",", "."};
 
@@ -321,7 +333,7 @@ namespace Lexer
     }
 
     // [a-z, A-Z, 0-9, _]
-    bool IsIdentifierChar(char c)
+    static bool IsIdentifierChar(char c)
     {
         return (c >= 'a' && c <= 'z') ||
                (c >= 'A' && c <= 'Z') ||
@@ -329,13 +341,13 @@ namespace Lexer
                (c == '_') || (c == '#');
     }
 
-    bool IsNumericChar(char c)
+    static bool IsNumericChar(char c)
     {
         return (c >= '0' && c <= '9') ||
                (c == '#');
     }
 
-    bool IsWhite(char c)
+    static bool IsWhite(char c)
     {
         return (c == '\n') ||
                (c == '\r') ||
@@ -343,7 +355,7 @@ namespace Lexer
                (c == ' ');
     }
 
-    bool IsOperatorChar(char c)
+    static bool IsOperatorChar(char c)
     {
         return (c == ':') ||
                (c == '=') ||

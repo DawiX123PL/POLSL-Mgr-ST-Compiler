@@ -1,24 +1,38 @@
 cmake_minimum_required(VERSION 3.20)
 project(st_compiler)
 
+#***************************************************************************************************************
 # source files 
+
 set(SOURCES   
     src/console/command_line_parser.hpp
     src/console/color.cpp 
     src/console/color.hpp
     src/file/file_utils.cpp 
     src/file/file_utils.hpp
-    src/lexer/st_lexer.cpp 
+
+    src/lexer/st_lexer.cpp
     src/lexer/st_lexer.hpp
     src/lexer/st_token_type.cpp
     src/lexer/st_token_type.hpp
+
     src/parser/parser.cpp 
     src/parser/parser.hpp
     src/ast/ast.hpp 
     src/ast/ast.cpp 
+    src/error.cpp 
     src/error.hpp 
     src/main.cpp
 )
+
+#***************************************************************************************************************
+# executable file
+add_executable(st_compiler ${SOURCES})
+
+
+#***************************************************************************************************************
+# include llvm headers
+# and link llvm binaries
 
 add_definitions(-D_ITERATOR_DEBUG_LEVEL=0) 
 
@@ -31,11 +45,6 @@ include_directories(${LLVM_INCLUDE_DIRS})
 separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
 add_definitions(${LLVM_DEFINITIONS_LIST})
 
-
-
-# executable file
-add_executable(st_compiler ${SOURCES})
-
 llvm_map_components_to_libnames(llvm_libs support core irreader)
 target_link_libraries(st_compiler ${llvm_libs})
 
@@ -47,7 +56,24 @@ if ( MSVC )
     target_compile_options(st_compiler PRIVATE /MD  /JMC)
 endif ( MSVC )
 
+#***************************************************************************************************************
+# add Boost includes and binaries
 
+set(Boost_USE_STATIC_LIBS OFF) 
+set(Boost_USE_MULTITHREADED ON)  
+set(Boost_USE_STATIC_RUNTIME OFF) 
+
+set(BOOST_ROOT "C:/boost")
+find_package(Boost)
+
+if(Boost_FOUND)
+    include_directories(${Boost_INCLUDE_DIRS})
+    target_compile_options(st_compiler PUBLIC -DBOOST_ALL_NO_LIB)
+else()
+    message(FATAL_ERROR "Could not find Boost libraries")
+endif()
+
+#***************************************************************************************************************
 # change default out dir
 set_target_properties( st_compiler
     PROPERTIES
@@ -76,5 +102,5 @@ if ( MSVC )
 
 endif ( MSVC )
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "") # works
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
 

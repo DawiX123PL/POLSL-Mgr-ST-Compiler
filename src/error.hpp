@@ -8,6 +8,8 @@
 #include "position.hpp"
 #include "lexer/st_token_type.hpp"
 
+
+
 namespace Error
 {
     class BasicError
@@ -31,6 +33,11 @@ namespace Error
     {
         error_list.push_back(std::make_shared<T>(error));
     }
+
+    //*****************************************************************************************************
+    // helper function for pushing error objects to list
+
+    void PrintErrors(const Error::ErrorList_t &error_list);
 
     //*****************************************************************************************************
     // Internal Compiler Error
@@ -322,6 +329,39 @@ namespace Error
         std::string ToString() const override
         {
             return "BOOL literal must be 0 (FALSE) or 1 (TRUE), at:" + position.ToString();
+        };
+    };
+
+    //*****************************************************************************************************
+    // Cannot Read File 
+
+    class CannotReadFile : public BasicError
+    {
+        std::string path;
+
+    public:
+        CannotReadFile(std::string _path)
+            : path(_path){};
+
+        std::string ToString() const override
+        {
+            return "Cannot Read file content : " + path;
+        };
+    };
+
+    //*****************************************************************************************************
+    // No Input Files 
+
+    class NoInputFiles : public BasicError
+    {
+        std::string path;
+
+    public:
+        NoInputFiles(){};
+
+        std::string ToString() const override
+        {
+            return "No Input Files";
         };
     };
 

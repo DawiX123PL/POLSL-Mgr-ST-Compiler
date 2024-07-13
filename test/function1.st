@@ -1,7 +1,7 @@
 
 
 
-FUNCTION test_func : BOOL
+FUNCTION test_func:BOOL
 
 VAR_INPUT
     aaa: INT;

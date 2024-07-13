@@ -6,6 +6,7 @@
 #include <utility>
 #include "../error.hpp"
 #include "st_token_type.hpp"
+#include "../file/file_utils.hpp"
 
 namespace Lexer
 {
@@ -42,8 +43,10 @@ namespace Lexer
         }
     };
 
-        Error::ErrorList_t Tokenize(const std::string &code, std::vector<Token> *tokens);
-
     typedef std::vector<Token> TokenList;
+
+    
+    std::vector<TokenList> TokenizeFiles(Error::ErrorList_t &err, const std::vector<File> files);
+    TokenList Tokenize(Error::ErrorList_t &err, const std::string &code);
 
 };
