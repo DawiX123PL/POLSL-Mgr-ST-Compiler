@@ -74,13 +74,14 @@ namespace Error
     class UnexpectedTokenError : public BasicError
     {
         Position position;
+        Lexer::TokenType token;
 
     public:
-        UnexpectedTokenError(Position _position) : position(_position){};
+        UnexpectedTokenError(Position _position, Lexer::TokenType _token) : position(_position), token(_token){};
 
         std::string ToString() const override
         {
-            return "";
+            return "Unexpected token at position " + position.ToString() + " (token: \'" + Lexer::TokenTypeToString(token) + ")";
         };
     };
 

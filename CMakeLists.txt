@@ -16,8 +16,9 @@ set(SOURCES
     src/lexer/st_token_type.cpp
     src/lexer/st_token_type.hpp
 
-    src/parser/parser.cpp 
-    src/parser/parser.hpp
+    src/parser/st_parser.cpp 
+    src/parser/st_parser.hpp
+
     src/ast/ast.hpp 
     src/ast/ast.cpp 
     src/error.cpp 

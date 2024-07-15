@@ -5,7 +5,7 @@
 #include "../lexer/st_lexer.hpp"
 #include "../ast/ast.hpp"
 
-AST::POUlist Parse(Error::ErrorList_t &err, Lexer::TokenList tokens);
+AST::POUlist ParseFile(Error::ErrorList_t &err, Lexer::TokenList tokens);
 AST::POUPtr ParseFunction(Error::ErrorList_t &err, Lexer::TokenList tokens);
 void ParseFunctionBlock(Error::ErrorList_t &err, Lexer::TokenList tokens);
 void ParseProgram(Error::ErrorList_t &err, Lexer::TokenList tokens);

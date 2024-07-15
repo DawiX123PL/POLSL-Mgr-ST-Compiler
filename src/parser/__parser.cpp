@@ -18,7 +18,7 @@ Lexer::TokenList SubVector(const Lexer::TokenList &tokens, int first, int last)
     return Lexer::TokenList{&tokens[first], &tokens[last] + 1};
 }
 
-AST::POUlist Parse(Error::ErrorList_t &err, Lexer::TokenList tokens)
+AST::POUlist ParseFile(Error::ErrorList_t &err, Lexer::TokenList tokens)
 {
     if (tokens.size() == 0)
     {
@@ -37,7 +37,7 @@ AST::POUlist Parse(Error::ErrorList_t &err, Lexer::TokenList tokens)
     while (current_pos < tokens.size())
     {
 
-        {
+        { // FUNCTION
             std::pair<int, int> pair_pos = FindTokenPair(tokens, current_pos, Lexer::TokenType::FUNCTION, Lexer::TokenType::END_FUNCTION);
             if (pair_pos.second == -1)
             {
@@ -55,7 +55,7 @@ AST::POUlist Parse(Error::ErrorList_t &err, Lexer::TokenList tokens)
             }
         }
 
-        {
+        { // FUNCTION BLOCK
             std::pair<int, int> pair_pos = FindTokenPair(tokens, current_pos, Lexer::TokenType::FUNCTION_BLOCK, Lexer::TokenType::END_FUNCTION_BLOCK);
             if (pair_pos.second == -1)
             {
@@ -72,7 +72,7 @@ AST::POUlist Parse(Error::ErrorList_t &err, Lexer::TokenList tokens)
             }
         }
 
-        {
+        { // PROGRAM
             std::pair<int, int> pair_pos = FindTokenPair(tokens, current_pos, Lexer::TokenType::PROGRAM, Lexer::TokenType::END_PROGRAM);
             if (pair_pos.second == -1)
             {
@@ -740,7 +740,7 @@ AST::ExprPtr ParseExpression(Error::ErrorList_t &err, const Lexer::TokenList &to
     std::vector<std::variant<Lexer::Token, AST::ExprPtr>> token_expr_vec;
     for (int i = 0; i < tokens.size(); i++)
     {
-        // TODO: Parse function call;
+        // TODO: ParseFile function call;
         if (tokens[i].type == Lexer::TokenType::IDENTIFIER)
         {
             // step 1.1 parse variable

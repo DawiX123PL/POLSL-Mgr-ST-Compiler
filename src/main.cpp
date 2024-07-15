@@ -4,7 +4,8 @@
 #include "lexer/st_lexer.hpp"
 #include "file/file_utils.hpp"
 #include "console/command_line_parser.hpp"
-#include "parser/parser.hpp"
+#include "parser/st_parser.hpp"
+
 
 enum class CommandLineFlags : unsigned int
 {
@@ -36,10 +37,10 @@ int main(int argc, char const *argv[])
 
     CommandLineParser<CommandLineFlags> command_line = ParseCommandLine(argc, argv);
 
-
-    // read files 
+    // read files
     std::vector<std::string> input_file_paths = command_line.GetFiles();
-    if (input_file_paths.size() == 0){
+    if (input_file_paths.size() == 0)
+    {
         Error::PushError(err, Error::NoInputFiles());
         Error::PrintErrors(err);
         return -1;
@@ -67,6 +68,11 @@ int main(int argc, char const *argv[])
     //         std::cout << Console::FgBrightRed("[Error]: ") << err[i]->ToString() << "\n";
     //     }
     // }
+
+    for (Lexer::TokenList t : tokens_from_files)
+    {
+        StParser::Parse(err, t);
+    }
 
     // // AST::Function function;
 
