@@ -127,6 +127,8 @@ namespace Lexer
 
     constexpr std::pair<const char *, TokenType> tokentype_names_list[] = {
         {"UNNOWN", TokenType::UNNOWN}, // error case,
+        {"IDENTIFIER", TokenType::IDENTIFIER},
+        {"NUMERIC_LITERAL", TokenType::NUMERIC_LITERAL},
         {"COMMENT_ONELINE", TokenType::COMMENT_ONELINE},
         {"COMMENT_MULTILINE_BRACKET_OPEN", TokenType::COMMENT_MULTILINE_BRACKET_OPEN},
         {"COMMENT_MULTILINE_BRACKET_CLOSE", TokenType::COMMENT_MULTILINE_BRACKET_CLOSE},

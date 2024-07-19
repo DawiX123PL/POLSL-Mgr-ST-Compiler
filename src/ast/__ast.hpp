@@ -186,13 +186,13 @@ namespace AST
         }
     };
 
-    class Variable : public Expr
+    class VariableAccess : public Expr
     {
         std::string name;
 
     public:
-        Variable(std::string _name) : name(_name) {}
-        static ExprPtr CreateVariable(std::string _name) { return std::make_shared<Variable>(_name); }
+        VariableAccess(std::string _name) : name(_name) {}
+        static ExprPtr CreateVariable(std::string _name) { return std::make_shared<VariableAccess>(_name); }
 
         void Evaluate() override {}
         DataType GetDataType(CompilerContext *cc) override;

@@ -20,16 +20,16 @@ namespace Lexer
 
     // **********************************************************************************************************************************************
     // Declarations
-    bool IsSubstrAtPos(const std::string &code, int pos, char *sub_str);
-    void SplitToSubstrings(Error::ErrorList_t &err, const std::string &_code, std::vector<StringAndPos> *tokens_str);
-    void SplitConsecutiveOperators(const std::string &code, std::vector<std::string> *oper_list);
-    bool TryCategoriseKeywordToken(std::string str, Token *token);
-    bool TryCategoriseNumericLiterals(std::string str, Token *token);
+    static bool IsSubstrAtPos(const std::string &code, int pos, char *sub_str);
+    static void SplitToSubstrings(Error::ErrorList_t &err, const std::string &_code, std::vector<StringAndPos> *tokens_str);
+    static void SplitConsecutiveOperators(const std::string &code, std::vector<std::string> *oper_list);
+    static bool TryCategoriseKeywordToken(std::string str, Token *token);
+    static bool TryCategoriseNumericLiterals(std::string str, Token *token);
 
-    bool IsIdentifierChar(char c);
-    bool IsNumericChar(char c);
-    bool IsWhite(char c);
-    bool IsOperatorChar(char c);
+    static bool IsIdentifierChar(char c);
+    static bool IsNumericChar(char c);
+    static bool IsWhite(char c);
+    static bool IsOperatorChar(char c);
 
     // **********************************************************************************************************************************************
     // Definitions

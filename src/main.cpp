@@ -71,8 +71,15 @@ int main(int argc, char const *argv[])
 
     for (Lexer::TokenList t : tokens_from_files)
     {
-        StParser::Parse(err, t);
+        AST::PouList pou_list = StParser::Parse(err, t);
+        for(AST::PouPtr pou: pou_list){
+           std::cout<< pou->ToString() << "\n";
+        }
     }
+
+    Error::PrintErrors(err);
+
+    std::cout.flush();
 
     // // AST::Function function;
 

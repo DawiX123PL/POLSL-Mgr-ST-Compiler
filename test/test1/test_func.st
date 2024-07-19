@@ -4,7 +4,7 @@
 FUNCTION test_func:BOOL
 VAR_INPUT
     aaa: INT;
-    b: INT :=;
+    b: INT;
     c1: INT := INT#1001;
 END_VAR
 VAR_IN_OUT
@@ -16,19 +16,17 @@ END_VAR
 VAR
     c: INT := INT#16#100;
 END_VAR 
+x:=-aaa+b*c1;
 test_func := BOOL#1;
-x:=-aaa+b+c1;
+test_func := BOOL#1;
+test_func := BOOL#1;
+test_func := BOOL#1;
+test_func := BOOL#1;
+test_func := BOOL#1;
 IF Condition THEN
     IF Condition THEN
         x:=-a1+b+c1;
-    ELSIF Condition2 THEN
-        x:=-a2+b+c1;
-    ELSE
-        x:=-a3+b+c1;
     END_IF;
-ELSIF Condition2 THEN
-    x:=-a2+b+c1;
-ELSE
     x:=-a3+b+c1;
 END_IF;
 

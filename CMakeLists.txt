@@ -16,11 +16,15 @@ set(SOURCES
     src/lexer/st_token_type.cpp
     src/lexer/st_token_type.hpp
 
+    src/parser/st_expression_parser.cpp 
+    src/parser/st_expression_parser.hpp
+
     src/parser/st_parser.cpp 
     src/parser/st_parser.hpp
 
-    src/ast/ast.hpp 
-    src/ast/ast.cpp 
+    src/ast/ast1.hpp 
+    src/ast/ast1.cpp 
+
     src/error.cpp 
     src/error.hpp 
     src/main.cpp
@@ -82,6 +86,9 @@ set_target_properties( st_compiler
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/build/"
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/build/"
 )
+
+# target_compile_options(st_compiler PUBLIC "-Wunused-result" "-Wall")
+
 
 # trick from https://stackoverflow.com/questions/7747857/in-cmake-how-do-i-work-around-the-debug-and-release-directories-visual-studio-2
 # prevents creating Debug and Release directories

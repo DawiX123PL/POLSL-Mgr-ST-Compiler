@@ -393,7 +393,7 @@ bool ParseVariableExpr(std::vector<Error> *err, std::list<TokenExprVariant> *tok
             if (token->type == Lexer::TokenType::IDENTIFIER)
             {
 
-                AST::ExprPtr var = std::make_shared<AST::Variable>(token->str);
+                AST::ExprPtr var = std::make_shared<AST::VariableAccess>(token->str);
                 (*iter) = var;
                 // ParseNumericLiteral(err, &*iter);
             }

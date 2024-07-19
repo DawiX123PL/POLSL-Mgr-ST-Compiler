@@ -119,7 +119,7 @@
             "--output-c-header",
             ".\\test\\test1\\__file.h",
             "-o",
-            ".\\test\\test1\\__file.ll"
+            ".\\test\\test1\\__file.ll",
         ]
     },
     "autoHide.autoHideSideBar": false

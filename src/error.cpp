@@ -13,7 +13,7 @@ namespace Error
     {
         for (int i = 0; i < error_list.size(); i++)
         {
-            std::cout << Console::FgBrightRed("[Error]") << error_list[i] << "\n";
+            std::cout << Console::FgBrightRed("[Error]") << *error_list[i] << "\n";
         }
     }
 

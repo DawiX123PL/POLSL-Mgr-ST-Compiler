@@ -125,14 +125,14 @@ namespace AST
               initial_value(_initial) {}
     };
 
-    class Variable : public Expr
+    class VariableAccess : public Expr
     {
         std::string name;
 
         void Evaluate(){};
 
     public:
-        Variable(std::string _name)
+        VariableAccess(std::string _name)
             : name(_name) {}
     };
 
