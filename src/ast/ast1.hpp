@@ -5,6 +5,9 @@
 #include <memory>
 #include <map>
 
+#include <boost/multiprecision/cpp_bin_float.hpp>
+#include <boost/multiprecision/cpp_int.hpp>
+
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
@@ -12,6 +15,9 @@
 #include <llvm/IR/Intrinsics.h>
 
 #include "type.hpp"
+
+typedef boost::multiprecision::cpp_int big_int;
+typedef boost::multiprecision::cpp_bin_float_oct big_float;
 
 namespace AST
 {
@@ -32,8 +38,6 @@ namespace AST
     // };
 
     //******************************************************************************************
-
-    
 
     // interface
     struct Expression
@@ -362,11 +366,26 @@ namespace AST
 
     struct Literal : public Expression
     {
-        std::string value;
-        Literal(std::string l) : value(l){};
+        Type type;
+
+        big_int i_value; // holds integer-like values
+        double f_value;  // holds float-like values
+
+        Literal(bool v, Type t) : i_value((int)v), f_value((int)v), type(t) {};
+        Literal(big_int v, Type t) : i_value(v), f_value(v), type(t) {};
+        Literal(double v, Type t) : i_value(v), f_value(v), type(t) {};
+
         std::string ToString()
         {
-            return value;
+            if (type.IsFloatingPoint())
+            {
+                return type.ToString() + "#" + std::to_string(f_value);
+            }
+            if (type.IsInteger() || type.IsBit())
+            {
+                return type.ToString() + "#" + i_value.str();
+            }
+            return "_INVALID_";
         }
 
         llvm::Value *CodeGenLLVM(LLVMCompilerContext *llvm_cc);
@@ -375,7 +394,7 @@ namespace AST
     struct VariableAccess : public Expression
     {
         std::string variable_name;
-        VariableAccess(std::string l) : variable_name(l){};
+        VariableAccess(std::string l) : variable_name(l) {};
         std::string ToString()
         {
             return variable_name;

@@ -94,7 +94,7 @@ namespace Lexer
         std::string identifier_or_keyword = "[a-zA-Z_][a-zA-Z0-9_]*";
         std::string integer_literal = "[0-9][0-9_]*";
         std::string numeric_literal = "[0-9][0-9_]*(?:[.][0-9][0-9_]*)?(?:[eE][+-]?[0-9][0-9_]*)?";
-        std::string typed_numeric_literal = identifier_or_keyword + "#[a-zA-Z0-9_]*";
+        std::string typed_numeric_literal = identifier_or_keyword + "#[a-zA-Z0-9._]*";
         std::string based_numeric_literal = integer_literal + "#[a-zA-Z0-9_]*";
         std::string typed_based_numeric_literal = identifier_or_keyword + "#" + integer_literal + "#[a-zA-Z0-9_]*";
         std::string string_literal1 = R"REGEX(\"(?:\$\"|[^"])*\")REGEX";
@@ -229,7 +229,7 @@ namespace Lexer
         std::cout << "time: " << time_ms << "ms\n";
         std::cout.flush();
 
-        return {};
+        return tokens;
     }
 
 };

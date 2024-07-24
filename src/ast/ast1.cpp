@@ -41,6 +41,8 @@ namespace AST
         return Indent(str);
     }
 
+
+
     llvm::Value *Literal::CodeGenLLVM(LLVMCompilerContext *llvm_cc)
     {
         int tmp_val = 0; // FIXME: fix this

@@ -5,6 +5,7 @@
 #include "../error.hpp"
 #include "../lexer/st_lexer.hpp"
 #include "../ast/ast1.hpp"
+#include <regex>
 
 namespace StParser::Expression
 {
@@ -20,7 +21,7 @@ namespace StParser::Expression
         void PushError(T error)
         {
             assert(err != nullptr);
-                Error::PushError(*err, error);
+            Error::PushError(*err, error);
         }
 
         void PopToken()
@@ -46,7 +47,7 @@ namespace StParser::Expression
             }
             else
             {
-                return Lexer::Token(Lexer::TokenType::UNNOWN, "", Position(0,0)); // to prevent segfault
+                return Lexer::Token(Lexer::TokenType::UNNOWN, "", Position(0, 0)); // to prevent segfault
             }
         }
 
@@ -75,7 +76,160 @@ namespace StParser::Expression
         //     //
         // }
 
+        [[nodiscard]] bool ParseFloat(std::string str, double *result)
+        {
+            std::string str1;
+            // step1: skip _
+            for (char c : str)
+            {
+                if (c != '_')
+                    str1 += c;
+            }
 
+            try
+            {
+                *result = std::stold(str1);
+                return true;
+            }
+            catch (...)
+            {
+                return false;
+            }
+            return false;
+        }
+
+        static int CharToNum(char c)
+        {
+            if (c >= '0' && c <= '9')
+            {
+                return (int)c - (int)'0';
+            }
+
+            if (c >= 'a' && c <= 'z')
+            {
+                return (int)c - (int)'a' + 0x0A;
+            }
+
+            if (c >= 'A' && c <= 'Z')
+            {
+                return (int)c - (int)'A' + 0x0A;
+            }
+
+            return -1;
+        }
+
+        bool ParseInteger(const std::string str, int base, big_int *result)
+        {
+            big_int res;
+            bool minus = false;
+            for (int i = 0; i < str.size(); i++)
+            {
+                char c = str[i];
+                if (i == 0 & c == '+')
+                    continue;
+
+                if (i == 0 & c == '-')
+                {
+                    minus = true;
+                    continue;
+                }
+
+                if (c == '_')
+                    continue;
+
+                int n = CharToNum(c);
+                if (n == -1 && n >= base)
+                {
+                    return false;
+                }
+                res *= base;
+                res += n;
+            }
+
+            *result = minus ? -res : res;
+            return true;
+        }
+
+        /////////////////////////////////////////////////////////////////////////////////
+
+        [[nodiscard]] AST::ExprPtr
+        ParseNumericLiteral()
+        {
+            Lexer::Token token = GetCurrentToken();
+            PopToken();
+
+            std::smatch mr;
+
+            // check if bool literal
+            if (std::regex_match(token.str, mr, std::regex("BOOL#0|BOOL#FALSE", std::regex_constants::syntax_option_type::icase)))
+            {
+                AST::Type type = AST::Type::BOOL;
+                return AST::MakeExpr(AST::Literal(false, type));
+            }
+
+            if (std::regex_match(token.str, mr, std::regex("BOOL#1|BOOL#TRUE", std::regex_constants::syntax_option_type::icase)))
+            {
+                AST::Type type = AST::Type::BOOL;
+                return AST::MakeExpr(AST::Literal(true, type));
+            }
+
+            // check if integer (arbitrary precision)
+            if (std::regex_match(token.str, mr, std::regex("[0-9][0-9_]*")))
+            {
+                big_int num;
+                if (!ParseInteger(token.str, 10, &num))
+                {
+                    PushError(Error::InvalidNumericLiteral(token.pos));
+                }
+                AST::Type type = AST::Type::INT;
+                return AST::MakeExpr(AST::Literal(num, type));
+            }
+
+            // check if float
+            if (std::regex_match(token.str, mr, std::regex("[0-9][0-9_]*[.][0-9][0-9_]?(?:[eE][+-]?[0-9][0-9_]*)?")))
+            {
+                double num;
+                AST::Type type = AST::Type::REAL;
+                if (!ParseFloat(token.str, &num))
+                {
+                    PushError(Error::InvalidNumericLiteral(token.pos));
+                }
+                return AST::MakeExpr(AST::Literal(num, type));
+            }
+
+            // typed numeric literal
+            if (std::regex_match(token.str, mr, std::regex("(.*)#(.*)")))
+            {
+                // float types
+                AST::Type type = AST::Type::FromString(mr[1].str());
+                if (type.IsFloatingPoint())
+                {
+                    double num;
+                    if (!ParseFloat(mr[2].str(), &num))
+                    {
+                        PushError(Error::InvalidNumericLiteral(token.pos));
+                    }
+                    return AST::MakeExpr(AST::Literal(num, type));
+                }
+
+                // integer like types
+                if (type.IsInteger() || type.IsBit())
+                {
+                    big_int num;
+                    if (!ParseInteger(mr[2].str(), 10, &num))
+                    {
+                        PushError(Error::InvalidNumericLiteral(token.pos));
+                    }
+                    return AST::MakeExpr(AST::Literal(num, type));
+                }
+            }
+
+            // TODO:
+            // typed and based numeric literal
+
+            PushError(Error::InvalidNumericLiteral(token.pos));
+            return nullptr;
+        }
 
         [[nodiscard]] AST::ExprPtr ParsePrimaryExpression()
         {
@@ -93,16 +247,16 @@ namespace StParser::Expression
             if (IsNextToken(Lexer::TokenType::NUMERIC_LITERAL))
             {
                 // TODO: parse
-                Lexer::Token token = GetCurrentToken(); 
-                PopToken();
-                AST::ExprPtr expr = AST::MakeExpr(AST::Literal(token.str));
+
+                // AST::ExprPtr expr = AST::MakeExpr(AST::Literal(token.str));
+                AST::ExprPtr expr = ParseNumericLiteral();
                 return expr;
             }
 
             else if (IsNextToken(Lexer::TokenType::IDENTIFIER))
             {
                 // TODO: parse
-                Lexer::Token token = GetCurrentToken(); 
+                Lexer::Token token = GetCurrentToken();
                 PopToken();
 
                 AST::ExprPtr expr = AST::MakeExpr(AST::VariableAccess(token.str));
@@ -313,7 +467,7 @@ namespace StParser::Expression
 
             return left;
         }
-        
+
         [[nodiscard]] AST::ExprPtr Parse(Lexer::TokenList _tokens)
         {
             tokens = _tokens;
@@ -321,7 +475,7 @@ namespace StParser::Expression
             AST::ExprPtr expr = ParseExpression();
 
             // check if all tokens were consumed
-            if(current_index < tokens.size())
+            if (current_index < tokens.size())
             {
                 PushError(Error::UnexpectedTokenError(GetCurrentToken().pos, GetCurrentToken().type));
             }
@@ -336,5 +490,4 @@ namespace StParser::Expression
     };
 
     AST::ExprPtr Parse(Error::ErrorList_t &err, Lexer::TokenList tokens);
-
 }
