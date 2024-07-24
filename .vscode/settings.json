@@ -105,7 +105,8 @@
         "stdfloat": "cpp",
         "strstream": "cpp",
         "typeindex": "cpp",
-        "*.ipp": "cpp"
+        "*.ipp": "cpp",
+        "regex": "cpp"
     },
     "explorer.excludeGitIgnore": false,
     "cmake.configureOnOpen": false,
@@ -122,5 +123,6 @@
             ".\\test\\test1\\__file.ll",
         ]
     },
-    "autoHide.autoHideSideBar": false
+    "autoHide.autoHideSideBar": false,
+    "autoHide.autoHideAuxiliaryBar": false
 }

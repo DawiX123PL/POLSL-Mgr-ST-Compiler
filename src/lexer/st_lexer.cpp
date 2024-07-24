@@ -1,12 +1,16 @@
 #include "st_lexer.hpp"
 #include "../error.hpp"
 
+#include <assert.h>
 #include <string>
 #include <vector>
 #include <array>
 #include <cctype>
 #include <cstring>
 #include <iostream>
+#include <map>
+#include <regex>
+#include <chrono>
 
 namespace Lexer
 {
@@ -15,24 +19,31 @@ namespace Lexer
     {
         std::string str;
         Position pos;
-        StringAndPos(std::string _str, Position _pos) : str(_str), pos(_pos){};
+        StringAndPos(std::string _str, Position _pos) : str(_str), pos(_pos) {};
     };
 
     // **********************************************************************************************************************************************
-    // Declarations
-    static bool IsSubstrAtPos(const std::string &code, int pos, char *sub_str);
-    static void SplitToSubstrings(Error::ErrorList_t &err, const std::string &_code, std::vector<StringAndPos> *tokens_str);
-    static void SplitConsecutiveOperators(const std::string &code, std::vector<std::string> *oper_list);
-    static bool TryCategoriseKeywordToken(std::string str, Token *token);
-    static bool TryCategoriseNumericLiterals(std::string str, Token *token);
-
-    static bool IsIdentifierChar(char c);
-    static bool IsNumericChar(char c);
-    static bool IsWhite(char c);
-    static bool IsOperatorChar(char c);
-
-    // **********************************************************************************************************************************************
     // Definitions
+
+    class RegexBuilder
+    {
+        std::string pattern_str;
+        int capturing_group = 0;
+
+    public:
+        std::regex Build()
+        {
+            return std::regex(pattern_str, std::regex_constants::syntax_option_type::ECMAScript);
+        }
+        int Push(std::string s)
+        {
+            if (!pattern_str.empty())
+                pattern_str += "|";
+            pattern_str += "(" + s + ")";
+            capturing_group++;
+            return capturing_group;
+        }
+    };
 
     std::vector<TokenList> TokenizeFiles(Error::ErrorList_t &err, const std::vector<File> files)
     {
@@ -48,43 +59,14 @@ namespace Lexer
         return token_list;
     }
 
-    TokenList Tokenize(Error::ErrorList_t &err, const std::string &code)
+    int GetRegexMatchID(std::smatch mr)
     {
-
-        std::vector<StringAndPos> tokens_str;
-
-        SplitToSubstrings(err, code, &tokens_str);
-
-        TokenList token_list;
-        token_list.resize(tokens_str.size());
-
-        // categorise tokens
-        for (int i = 0; i < tokens_str.size(); i++)
+        for (int i = 1; i < mr.size(); i++)
         {
-            std::string str = tokens_str[i].str;
-            Token *token = &token_list[i];
-
-            if (TryCategoriseKeywordToken(str, token))
-            {
-                continue;
-            }
-
-            if (TryCategoriseNumericLiterals(str, token))
-            {
-                continue;
-            }
-
-            token->type = TokenType::IDENTIFIER;
+            if (mr[i].matched)
+                return i;
         }
-
-        // copy position and string from code to new tokens
-        for (int i = 0; i < tokens_str.size(); i++)
-        {
-            token_list[i].str = tokens_str[i].str;
-            token_list[i].pos = tokens_str[i].pos;
-        }
-
-        return token_list;
+        return 0;
     }
 
     static bool TryCategoriseKeywordToken(std::string str, Token *token)
@@ -106,273 +88,148 @@ namespace Lexer
         return false;
     }
 
-    static bool TryCategoriseNumericLiterals(std::string str, Token *token)
-    {
-        // true if first char is numeric
-        if (IsNumericChar(str[0]))
-        {
-            token->type = TokenType::NUMERIC_LITERAL;
-            return true;
-        }
-
-        // true if contains # symbol
-        for (int i = 0; i < str.size(); i++)
-        {
-            if (str[i] == '#')
-            {
-                token->type = TokenType::NUMERIC_LITERAL;
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    // TODO comments
-    static void SplitToSubstrings(Error::ErrorList_t &err, const std::string &_code, std::vector<StringAndPos> *tokens_str)
+    TokenList Tokenize(Error::ErrorList_t &err, const std::string &code)
     {
 
-        const std::string &code = _code + ' ';
+        std::string identifier_or_keyword = "[a-zA-Z_][a-zA-Z0-9_]*";
+        std::string integer_literal = "[0-9][0-9_]*";
+        std::string numeric_literal = "[0-9][0-9_]*(?:[.][0-9][0-9_]*)?(?:[eE][+-]?[0-9][0-9_]*)?";
+        std::string typed_numeric_literal = identifier_or_keyword + "#[a-zA-Z0-9_]*";
+        std::string based_numeric_literal = integer_literal + "#[a-zA-Z0-9_]*";
+        std::string typed_based_numeric_literal = identifier_or_keyword + "#" + integer_literal + "#[a-zA-Z0-9_]*";
+        std::string string_literal1 = R"REGEX(\"(?:\$\"|[^"])*\")REGEX";
+        std::string string_literal2 = R"REGEX(\'(?:\$\'|[^'])*\')REGEX";
 
-        bool is_numeric = false;
+        RegexBuilder builder;
+        std::map<int, TokenType> id_map;
 
-        unsigned char prev = ' ';
-        unsigned char curr = ' ';
-        unsigned char first = ' ';
+        const int id_newline = builder.Push("\\n");
+        const int id_white_space = builder.Push("\\s");
+        const int id_typed_based_numeric_literal = builder.Push(typed_based_numeric_literal);
+        const int id_typed_numeric_literal = builder.Push(typed_numeric_literal);
+        const int id_based_numeric_literal = builder.Push(based_numeric_literal);
+        const int id_identifier_or_keyword = builder.Push(identifier_or_keyword);
+        const int id_numeric_literal = builder.Push(numeric_literal);
+        const int id_string_literal_1 = builder.Push(string_literal1);
+        const int id_string_literal_2 = builder.Push(string_literal2);
+        const int id_single_line_comment = builder.Push("\\/\\/.*");
+        const int id_multiline_comment_1 = builder.Push(R"REGEX(\(\*[^*]*(?:\*(?!\*)[^)]*)*\*\))REGEX"); // todo fix problem with missing comments tags
+        const int id_multiline_comment_2 = builder.Push(R"REGEX(\\\*[^*]*(?:\*(?!\*)[^*]*)*\*\\)REGEX"); // todo fix problem with missing comments tags
+        id_map[builder.Push("\\(\\*")] = TokenType::COMMENT_MULTILINE_BRACKET_OPEN;
+        id_map[builder.Push("\\*\\)")] = TokenType::COMMENT_MULTILINE_BRACKET_CLOSE;
+        id_map[builder.Push("\\\\\\*")] = TokenType::COMMENT_MULTILINE_SLASH_OPEN;
+        id_map[builder.Push("\\*\\\\")] = TokenType::COMMENT_MULTILINE_SLASH_CLOSE;
+        id_map[builder.Push("\\(")] = TokenType::ROUND_BRACKET_OPENING;
+        id_map[builder.Push("\\)")] = TokenType::ROUND_BRACKET_CLOSING;
+        id_map[builder.Push("\\[")] = TokenType::SQUARE_BRACKET_OPENING;
+        id_map[builder.Push("\\]")] = TokenType::SQUARE_BRACKET_CLOSING;
+        id_map[builder.Push("\\*\\*")] = TokenType::EXPONENTIATION;
+        id_map[builder.Push("\\<\\=")] = TokenType::LESS_OR_EQUAL;
+        id_map[builder.Push("\\>\\=")] = TokenType::GREATER_OR_EQUAL;
+        id_map[builder.Push("\\<\\>")] = TokenType::INEQUALITY;
+        id_map[builder.Push("\\:\\=")] = TokenType::ASSIGN;
+        id_map[builder.Push("\\.\\.")] = TokenType::DOUBLE_DOT;
+        id_map[builder.Push("\\=")] = TokenType::EQUALITY;
+        id_map[builder.Push("\\^")] = TokenType::DEREFERENCE;
+        id_map[builder.Push("\\-")] = TokenType::MINUS;
+        id_map[builder.Push("\\+")] = TokenType::PLUS;
+        id_map[builder.Push("\\*")] = TokenType::MULTIPLY;
+        id_map[builder.Push("\\/")] = TokenType::DIVIDE;
+        id_map[builder.Push("\\>")] = TokenType::GREATER_THAN;
+        id_map[builder.Push("\\<")] = TokenType::LESS_THAN;
+        id_map[builder.Push("\\&")] = TokenType::BOOLEAN_AND;
+        id_map[builder.Push("\\:")] = TokenType::COLON;
+        id_map[builder.Push("\\;")] = TokenType::SEMICOLON;
+        id_map[builder.Push("\\.")] = TokenType::DOT;
+        id_map[builder.Push("\\,")] = TokenType::COMMA;
+        id_map[builder.Push("\\#")] = TokenType::NUMBER_SIGN;
 
-        int begining_index = 0;
+        std::regex pattern = builder.Build();
+        std::smatch mr;
 
-        Position begining_pos = Position(1, 0);
-        Position current_pos = Position(1, 0);
+        // ***************************
+        TokenList tokens;
 
-        for (int current_index = 0; current_index < code.size(); current_index++)
+        int line_counter = 1;
+        int current_column_begin = 0;
+
+        auto start_time = std::chrono::high_resolution_clock::now();
+
+        auto next_str = code.begin();
+        auto end_str = code.end();
+        while (std::regex_search(next_str, end_str, mr, pattern))
         {
-            current_pos.col++;
+            int current_index = next_str - code.begin();
+            next_str = mr.suffix().first;
 
-            prev = curr;
-            curr = code[current_index];
-            first = code[begining_index];
-
-            if (curr == '\n')
+            Position pos{line_counter, current_index - current_column_begin};
+            if (mr.empty())
             {
-                current_pos.col = 0;
-                current_pos.line++;
-            }
-
-            if (IsNumericChar(first) || curr == '#')
-            {
-                is_numeric = true;
-            }
-
-            //////////////////////////////////////////////////////////////////////
-
-            if (IsIdentifierChar(first) && IsIdentifierChar(curr))
-            {
-                // do nothing - skip
-                continue;
-            }
-            if (IsWhite(first) && IsWhite(curr))
-            {
-                // do nothing - skip
+                Error::PushError(err, Error::UnexpectedSymbolError(pos, code[current_index]));
                 continue;
             }
 
-            if (IsOperatorChar(first) && IsOperatorChar(curr))
+            int id = GetRegexMatchID(mr);
+
+            if (id == id_newline)
             {
-                // do nothing - skip
+                line_counter++;
+                current_column_begin = code.begin() - next_str;
                 continue;
             }
 
-            if ((prev == '#') && ((curr == '+') || (curr == '-')))
+            if (id == id_white_space ||
+                id == id_single_line_comment ||
+                id == id_multiline_comment_1 ||
+                id == id_multiline_comment_2)
             {
-                // do nothing - skip
                 continue;
             }
 
-            if (is_numeric && (curr == '.'))
+            if (id == id_numeric_literal ||
+                id == id_typed_numeric_literal ||
+                id == id_based_numeric_literal ||
+                id == id_typed_based_numeric_literal)
             {
-                // do nothing - skip
+                TokenType type = TokenType::NUMERIC_LITERAL;
+                tokens.emplace_back(type, mr.str(), pos);
                 continue;
             }
 
-            if (is_numeric && ((prev == 'e') || (prev == 'E')) && ((curr == '+') || (curr == '-')))
+            if (id == id_identifier_or_keyword)
             {
-                // do nothing - skip
-                continue;
-            }
-
-            //////////////////////////////////////////////////////////////////////
-
-            if (IsWhite(first) && IsIdentifierChar(curr))
-            {
-                begining_index = current_index;
-                begining_pos = current_pos;
-                is_numeric = false;
-                continue;
-            }
-            if (IsWhite(first) && IsOperatorChar(curr))
-            {
-                begining_index = current_index;
-                begining_pos = current_pos;
-                is_numeric = false;
-                continue;
-            }
-
-            //////////////////////////////////////////////////////////////////////
-
-            if (IsIdentifierChar(first) && IsOperatorChar(curr))
-            {
-                int len = current_index - begining_index;
-                tokens_str->emplace_back(code.substr(begining_index, len), begining_pos);
-                begining_index = current_index;
-                begining_pos = current_pos;
-                is_numeric = false;
-                continue;
-            }
-
-            if (IsOperatorChar(first) && IsIdentifierChar(curr))
-            {
-                int len = current_index - begining_index;
-
-                std::string operators_str = code.substr(begining_index, len);
-                std::vector<std::string> operator_list;
-
-                SplitConsecutiveOperators(operators_str, &operator_list);
-
-                Position operator_pos = current_pos;
-
-                for (int j = 0; j < operator_list.size(); j++)
+                Token token;
+                if (TryCategoriseKeywordToken(mr[0].str(), &token))
                 {
-                    operator_pos.col += operator_list[j].size();
-                    tokens_str->emplace_back(operator_list[j], operator_pos);
+                    tokens.emplace_back(token.type, mr.str(), pos);
                 }
-
-                begining_index = current_index;
-                begining_pos = current_pos;
-                is_numeric = false;
-                continue;
-            }
-
-            //////////////////////////////////////////////////////////////////////
-
-            if (IsIdentifierChar(first) && IsWhite(curr))
-            {
-                int len = current_index - begining_index;
-                tokens_str->emplace_back(code.substr(begining_index, len), begining_pos);
-                begining_index = current_index;
-                begining_pos = current_pos;
-                is_numeric = false;
-                continue;
-            }
-
-            if (IsOperatorChar(first) && IsWhite(curr))
-            {
-                int len = current_index - begining_index;
-
-                std::string operators_str = code.substr(begining_index, len);
-                std::vector<std::string> operator_list;
-
-                SplitConsecutiveOperators(operators_str, &operator_list);
-
-                Position operator_pos = begining_pos;
-
-                for (int j = 0; j < operator_list.size(); j++)
+                else
                 {
-                    operator_pos.col += operator_list[j].size();
-                    tokens_str->emplace_back(operator_list[j], operator_pos);
+                    tokens.emplace_back(TokenType::IDENTIFIER, mr.str(), pos);
                 }
-
-                begining_index = current_index;
-                begining_pos = current_pos;
-                is_numeric = false;
                 continue;
             }
 
-            //////////////////////////////////////////////////////////////////////
-            Error::PushError(err, Error::UnexpectedSymbolError(current_pos, curr));
-            return;
+            auto iter = id_map.find(id);
+            if (iter != id_map.end())
+            {
+                TokenType type = iter->second;
+                tokens.emplace_back(type, mr.str(), pos);
+                continue;
+            }
+            else
+            {
+                Error::PushError(err, Error::UnexpectedSymbolError(pos, code[current_index]));
+                continue;
+            }
         }
 
-        return;
-    }
+        auto stop_time = std::chrono::high_resolution_clock::now();
+        float time_ms = ((float)(stop_time - start_time).count()) / 1000000.0;
+        std::cout << "time: " << time_ms << "ms\n";
+        std::cout.flush();
 
-    static void SplitConsecutiveOperators(const std::string &code, std::vector<std::string> *oper_list)
-    {
-        constexpr char operator_set[][3] = {":=", "**", ">=", "<=", "<>", "(", ")", "^", "-", "+", "*", "/", ">", "<", "=", "&", ":", ";", ",", "."};
-
-        bool succesful_match;
-
-        for (int code_pos = 0; code_pos < code.size(); /* do not increment automaticaly*/)
-        {
-            succesful_match = false;
-
-            for (int oper_nr = 0; oper_nr < sizeof(operator_set) / sizeof(operator_set[0]); oper_nr++)
-            {
-
-                const char *const _operator = operator_set[oper_nr];
-                int operator_len = strlen(_operator);
-
-                std::string code_substr = code.substr(code_pos, operator_len);
-
-                if (code_substr == _operator)
-                {
-                    oper_list->push_back(_operator);
-                    code_pos += operator_len;
-                    succesful_match = true;
-                    break;
-                }
-            }
-
-            if (!succesful_match)
-            {
-                // something went wrong - return
-                // TODO - fix this
-                throw "XD";
-            }
-        }
-    }
-
-    // [a-z, A-Z, 0-9, _]
-    static bool IsIdentifierChar(char c)
-    {
-        return (c >= 'a' && c <= 'z') ||
-               (c >= 'A' && c <= 'Z') ||
-               (c >= '0' && c <= '9') ||
-               (c == '_') || (c == '#');
-    }
-
-    static bool IsNumericChar(char c)
-    {
-        return (c >= '0' && c <= '9') ||
-               (c == '#');
-    }
-
-    static bool IsWhite(char c)
-    {
-        return (c == '\n') ||
-               (c == '\r') ||
-               (c == '\t') ||
-               (c == ' ');
-    }
-
-    static bool IsOperatorChar(char c)
-    {
-        return (c == ':') ||
-               (c == '=') ||
-               (c == '*') ||
-               (c == '>') ||
-               (c == '<') ||
-               (c == '(') ||
-               (c == ')') ||
-               (c == '^') ||
-               (c == '-') ||
-               (c == '+') ||
-               (c == '/') ||
-               (c == '&') ||
-               (c == ';') ||
-               (c == '.') ||
-               (c == ',');
-        ;
+        return {};
     }
 
 };

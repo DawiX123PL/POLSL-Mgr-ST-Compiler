@@ -14,7 +14,6 @@ namespace Lexer
         NUMERIC_LITERAL,
 
         // comments
-
         COMMENT_ONELINE,
         COMMENT_MULTILINE_BRACKET_OPEN,
         COMMENT_MULTILINE_BRACKET_CLOSE,
@@ -39,6 +38,12 @@ namespace Lexer
         // ST operators
         ROUND_BRACKET_OPENING,
         ROUND_BRACKET_CLOSING,
+        SQUARE_BRACKET_OPENING,
+        SQUARE_BRACKET_CLOSING,
+
+        DOUBLE_DOT,
+        DOT,
+        COMMA,
         DEREFERENCE,
         MINUS,
         PLUS,

@@ -20,9 +20,6 @@ x:=-aaa+b*c1;
 test_func := BOOL#1;
 test_func := BOOL#1;
 test_func := BOOL#1;
-test_func := BOOL#1;
-test_func := BOOL#1;
-test_func := BOOL#1;
 IF Condition THEN
     IF Condition THEN
         x:=-a1+b+c1;
