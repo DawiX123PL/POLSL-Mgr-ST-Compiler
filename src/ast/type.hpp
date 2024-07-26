@@ -50,6 +50,8 @@ namespace AST
         Type(DataType t) : type(t) {}
         bool operator==(Type t) { return t.type == this->type; }
         bool operator!=(Type t) { return t.type != this->type; }
+        bool operator==(DataType t) { return t == this->type; }
+        bool operator!=(DataType t) { return t != this->type; }
         operator int() { return type; }
 
         static Type FromString(std::string s)

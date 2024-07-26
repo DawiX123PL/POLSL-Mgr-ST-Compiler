@@ -8,13 +8,25 @@
 #include <boost/multiprecision/cpp_bin_float.hpp>
 #include <boost/multiprecision/cpp_int.hpp>
 
-#include <llvm/IR/LLVMContext.h>
-#include <llvm/IR/IRBuilder.h>
-#include <llvm/IR/Module.h>
+#include <llvm/ADT/APFloat.h>
+#include <llvm/ADT/APInt.h>
+#include <llvm/ADT/STLExtras.h>
+#include <llvm/IR/TypedPointerType.h>
 #include <llvm/IR/Value.h>
 #include <llvm/IR/Intrinsics.h>
+#include <llvm/IR/BasicBlock.h>
+#include <llvm/IR/Constants.h>
+#include <llvm/IR/DerivedTypes.h>
+#include <llvm/IR/Function.h>
+#include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Module.h>
+#include <llvm/IR/Type.h>
+#include <llvm/IR/TypedPointerType.h>
+#include <llvm/IR/Verifier.h>
 
 #include "type.hpp"
+#include "ast1_makros.hpp"
 
 typedef boost::multiprecision::cpp_int big_int;
 typedef boost::multiprecision::cpp_bin_float_oct big_float;
@@ -22,30 +34,19 @@ typedef boost::multiprecision::cpp_bin_float_oct big_float;
 namespace AST
 {
 
-    struct LLVMCompilerContext
-    {
-        std::unique_ptr<llvm::LLVMContext> context;
-        std::unique_ptr<llvm::IRBuilder<>> ir_builder;
-        std::unique_ptr<llvm::Module> module;
-    };
-
-    // struct Value
-    // {
-    //     std::string data_type;
-    //     llvm::Value *value;
-    //     llvm::Value *pointer;
-
-    // };
+    struct LLVMCompilerContext;
+    struct LocalScope;
 
     //******************************************************************************************
 
     // interface
     struct Expression
     {
-        Type type;
-
+        virtual Type GetType(LocalScope *ls) = 0;
         virtual std::string ToString() = 0;
-        virtual llvm::Value *CodeGenLLVM(LLVMCompilerContext *llvm_cc) = 0;
+
+        virtual llvm::Value *LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc) {return nullptr;};
+        virtual llvm::Value *LLVMGetReference(LocalScope *ls, LLVMCompilerContext *llvm_cc) {return nullptr;};
     };
 
     typedef std::shared_ptr<Expression> ExprPtr;
@@ -55,7 +56,7 @@ namespace AST
     struct Statement
     {
         virtual std::string ToString() = 0;
-        virtual void CodeGenLLVM(LLVMCompilerContext *llvm_cc) = 0;
+        virtual void CodeGenLLVM(LocalScope *ls, LLVMCompilerContext *llvm_cc) = 0;
     };
 
     typedef std::shared_ptr<Statement> StmtPtr;
@@ -101,18 +102,21 @@ namespace AST
         ExprPtr left;
         ExprPtr right;
         BinaryExpression(ExprPtr l, ExprPtr r) : left(l), right(r) {}
+        Type GetType(LocalScope *ls)
+        {
+            if (!left || !right)
+                return Type::UNNOWN;
+
+
+            Type type_left = left->GetType(ls);
+            Type type_right = right->GetType(ls);
+
+            if (type_left != type_right)
+                return Type::UNNOWN;
+
+            return type_left;
+        }
     };
-
-#define BINARY_CONSTRUCTOR(class_name) \
-    class_name(ExprPtr l, ExprPtr r) : BinaryExpression(l, r){};
-
-#define BINARY_TOSTRING(operator_str)                                             \
-    std::string ToString() override                                               \
-    {                                                                             \
-        std::string l_str = (left != nullptr) ? left->ToString() : "____";        \
-        std::string r_str = (right != nullptr) ? right->ToString() : "____";      \
-        return "(" + l_str + " " + std::string(operator_str) + " " + r_str + ")"; \
-    }
 
     //********************************************************************************************
 
@@ -121,17 +125,16 @@ namespace AST
     protected:
         ExprPtr expr;
         UnaryExpression(ExprPtr e) : expr(e) {}
+
+    public:
+        Type GetType(LocalScope *ls)
+        {
+            if (!expr)
+                return Type::UNNOWN;
+
+            return expr->GetType(ls);
+        }
     };
-
-#define UNARY_CONSTRUCTOR(class_name) \
-    class_name(ExprPtr e) : UnaryExpression(e){};
-
-#define UNARY_TOSTRING(operator_str)                                          \
-    std::string ToString() override                                           \
-    {                                                                         \
-        std::string expr_str = (expr != nullptr) ? expr->ToString() : "____"; \
-        return "(" + std::string(operator_str) + " " + expr_str + ")";        \
-    }
 
     //*******************************************************************************************
 
@@ -161,6 +164,12 @@ namespace AST
                 return name + " : " + type;
             }
         }
+
+        Type GetType()
+        {
+            return Type::FromString(type);
+        }
+
     };
 
     typedef std::vector<Variable> VarList;
@@ -175,33 +184,9 @@ namespace AST
         std::vector<Variable> var_output;
         std::vector<Variable> var_in_out;
 
-        std::string ToString()
-        {
-            std::string vars_str;
-            vars_str += "var:\n";
-            for (auto v : var)
-                vars_str += "\t" + v.ToString() + "\n";
+        std::string ToString();
 
-            vars_str += "var_input:\n";
-            for (auto v : var_input)
-                vars_str += "\t" + v.ToString() + "\n";
-
-            vars_str += "var_output:\n";
-            for (auto v : var_output)
-                vars_str += "\t" + v.ToString() + "\n";
-
-            vars_str += "var_in_out:\n";
-            for (auto v : var_in_out)
-                vars_str += "\t" + v.ToString() + "\n";
-
-            return "{FUNCTION " + name + "\n" + vars_str + "\n" + StatementListToString(statement_list) + "\n}";
-        }
-
-        llvm::Function *CodeGenLLVM(LLVMCompilerContext *llvm_cc)
-        {
-            // TODO: Function
-            return nullptr;
-        }
+        llvm::Function *CodeGenLLVM(LLVMCompilerContext *llvm_cc);
     };
 
     struct FunctionBlock : public Pou
@@ -214,27 +199,7 @@ namespace AST
         std::vector<Variable> var_output;
         std::vector<Variable> var_in_out;
 
-        std::string ToString()
-        {
-            std::string vars_str;
-            vars_str += "var:\n";
-            for (auto v : var)
-                vars_str += "\t" + v.ToString() + "\n";
-
-            vars_str += "var_input:\n";
-            for (auto v : var_input)
-                vars_str += "\t" + v.ToString() + "\n";
-
-            vars_str += "var_output:\n";
-            for (auto v : var_output)
-                vars_str += "\t" + v.ToString() + "\n";
-
-            vars_str += "var_in_out:\n";
-            for (auto v : var_in_out)
-                vars_str += "\t" + v.ToString() + "\n";
-
-            return "{FUNCTION_BLOCK  " + name + "\n" + vars_str + "\n" + StatementListToString(statement_list) + "\n}";
-        }
+        std::string ToString();
 
         llvm::Function *CodeGenLLVM(LLVMCompilerContext *llvm_cc)
         {
@@ -252,27 +217,7 @@ namespace AST
         std::vector<Variable> var_output;
         std::vector<Variable> var_in_out;
 
-        std::string ToString()
-        {
-            std::string vars_str;
-            vars_str += "var:\n";
-            for (auto v : var)
-                vars_str += "\t" + v.ToString() + "\n";
-
-            vars_str += "var_input:\n";
-            for (auto v : var_input)
-                vars_str += "\t" + v.ToString() + "\n";
-
-            vars_str += "var_output:\n";
-            for (auto v : var_output)
-                vars_str += "\t" + v.ToString() + "\n";
-
-            vars_str += "var_in_out:\n";
-            for (auto v : var_in_out)
-                vars_str += "\t" + v.ToString() + "\n";
-
-            return "{PROGRAM  " + name + "\n" + vars_str + "\n" + StatementListToString(statement_list) + "\n}";
-        }
+        std::string ToString();
 
         llvm::Function *CodeGenLLVM(LLVMCompilerContext *llvm_cc)
         {
@@ -290,7 +235,7 @@ namespace AST
             return "{}";
         }
 
-        void CodeGenLLVM(LLVMCompilerContext *llvm_cc)
+        void CodeGenLLVM(LocalScope *ls, LLVMCompilerContext *llvm_cc)
         {
             // DO NOTHING
             // NO NOT EMIT CODE FROM THIS CLASS
@@ -311,10 +256,7 @@ namespace AST
             return "{" + var_str + " := " + expr_str + "}";
         }
 
-        void CodeGenLLVM(LLVMCompilerContext *llvm_cc)
-        {
-            // TODO: AssignmentStatement
-        }
+        void CodeGenLLVM(LocalScope *ls, LLVMCompilerContext *llvm_cc);
     };
 
     struct IfStatement : public Statement
@@ -330,10 +272,7 @@ namespace AST
             return "{IF " + expr_str + " THEN\n" + StatementListToString(statement_list) + "\n}";
         }
 
-        void CodeGenLLVM(LLVMCompilerContext *llvm_cc)
-        {
-            // TODO: IfStatement
-        }
+        void CodeGenLLVM(LocalScope *ls, LLVMCompilerContext *llvm_cc) override;
     };
 
     struct WhileStatement : public Statement
@@ -356,10 +295,7 @@ namespace AST
             return str;
         }
 
-        void CodeGenLLVM(LLVMCompilerContext *llvm_cc)
-        {
-            // TODO: WhileStatement
-        }
+        void CodeGenLLVM(LocalScope *ls, LLVMCompilerContext *llvm_cc) override;
     };
 
     //********************************************************************************************
@@ -375,7 +311,12 @@ namespace AST
         Literal(big_int v, Type t) : i_value(v), f_value(v), type(t) {};
         Literal(double v, Type t) : i_value(v), f_value(v), type(t) {};
 
-        std::string ToString()
+        Type GetType(LocalScope* ls) override
+        {
+            return type;
+        }
+
+        std::string ToString() override
         {
             if (type.IsFloatingPoint())
             {
@@ -388,131 +329,97 @@ namespace AST
             return "_INVALID_";
         }
 
-        llvm::Value *CodeGenLLVM(LLVMCompilerContext *llvm_cc);
+        llvm::Value *LLVMGetValue(LocalScope* ls, LLVMCompilerContext *llvm_cc) override;
     };
 
     struct VariableAccess : public Expression
     {
         std::string variable_name;
         VariableAccess(std::string l) : variable_name(l) {};
-        std::string ToString()
+        std::string ToString() override
         {
             return variable_name;
         }
-
-        llvm::Value *CodeGenLLVM(LLVMCompilerContext *llvm_cc)
-        {
-            // TODO: variable access
-            return nullptr;
-        }
+        Type GetType(LocalScope *ls) override;
+        llvm::Value *LLVMGetValue(LocalScope* ls, LLVMCompilerContext *llvm_cc) override;
+        llvm::Value *LLVMGetReference(LocalScope* ls, LLVMCompilerContext *llvm_cc) override;
     };
 
     //********************************************************************************************
 
     struct Exponentiation : public BinaryExpression
     {
-        BINARY_CONSTRUCTOR(Exponentiation);
-        BINARY_TOSTRING("**");
-        llvm::Value *CodeGenLLVM(LLVMCompilerContext *llvm_cc);
+        BINARY_OPERATOR_METHODS(Exponentiation, "**");
     };
 
     struct Add : public BinaryExpression
     {
-        BINARY_CONSTRUCTOR(Add);
-        BINARY_TOSTRING("+");
-        llvm::Value *CodeGenLLVM(LLVMCompilerContext *llvm_cc);
+        BINARY_OPERATOR_METHODS(Add, "+");
     };
 
     struct Subtract : public BinaryExpression
     {
-        BINARY_CONSTRUCTOR(Subtract);
-        BINARY_TOSTRING("-");
-
-        llvm::Value *CodeGenLLVM(LLVMCompilerContext *llvm_cc);
+        BINARY_OPERATOR_METHODS(Subtract, "-");
     };
 
     struct Multiply : public BinaryExpression
     {
-        BINARY_CONSTRUCTOR(Multiply);
-        BINARY_TOSTRING("*");
-        llvm::Value *CodeGenLLVM(LLVMCompilerContext *llvm_cc);
+        BINARY_OPERATOR_METHODS(Multiply, "*");
     };
 
     struct Divide : public BinaryExpression
     {
-        BINARY_CONSTRUCTOR(Divide);
-        BINARY_TOSTRING("/");
-        llvm::Value *CodeGenLLVM(LLVMCompilerContext *llvm_cc);
+        BINARY_OPERATOR_METHODS(Divide, "/");
     };
 
     struct Modulo : public BinaryExpression
     {
-        BINARY_CONSTRUCTOR(Modulo);
-        BINARY_TOSTRING("MOD");
-        llvm::Value *CodeGenLLVM(LLVMCompilerContext *llvm_cc);
+        BINARY_OPERATOR_METHODS(Modulo, "MOD");
     };
 
     struct Or : public BinaryExpression
     {
-        BINARY_CONSTRUCTOR(Or);
-        BINARY_TOSTRING("OR");
-        llvm::Value *CodeGenLLVM(LLVMCompilerContext *llvm_cc);
+        BINARY_OPERATOR_METHODS(Or, "OR");
     };
 
     struct Xor : public BinaryExpression
     {
-        BINARY_CONSTRUCTOR(Xor);
-        BINARY_TOSTRING("XOR");
-        llvm::Value *CodeGenLLVM(LLVMCompilerContext *llvm_cc);
+        BINARY_OPERATOR_METHODS(Xor, "XOR");
     };
 
     struct And : public BinaryExpression
     {
-        BINARY_CONSTRUCTOR(And);
-        BINARY_TOSTRING("AND");
-        llvm::Value *CodeGenLLVM(LLVMCompilerContext *llvm_cc);
+        BINARY_OPERATOR_METHODS(And, "AND");
     };
 
     struct Gt : public BinaryExpression
     {
-        BINARY_CONSTRUCTOR(Gt);
-        BINARY_TOSTRING(">");
-        llvm::Value *CodeGenLLVM(LLVMCompilerContext *llvm_cc);
+        BINARY_OPERATOR_METHODS(Gt, ">");
     };
 
     struct Lt : public BinaryExpression
     {
-        BINARY_CONSTRUCTOR(Lt);
-        BINARY_TOSTRING("<");
-        llvm::Value *CodeGenLLVM(LLVMCompilerContext *llvm_cc);
+        BINARY_OPERATOR_METHODS(Lt, "<");
     };
 
     struct Geq : public BinaryExpression
     {
-        BINARY_CONSTRUCTOR(Geq);
-        BINARY_TOSTRING(">=");
-        llvm::Value *CodeGenLLVM(LLVMCompilerContext *llvm_cc);
+        BINARY_OPERATOR_METHODS(Geq, ">=");
     };
 
     struct Leq : public BinaryExpression
     {
-        BINARY_CONSTRUCTOR(Leq);
-        BINARY_TOSTRING("<=");
-        llvm::Value *CodeGenLLVM(LLVMCompilerContext *llvm_cc);
+        BINARY_OPERATOR_METHODS(Leq, "<=");
     };
 
     struct Eq : public BinaryExpression
     {
-        BINARY_CONSTRUCTOR(Eq);
-        BINARY_TOSTRING("=");
-        llvm::Value *CodeGenLLVM(LLVMCompilerContext *llvm_cc);
+        BINARY_OPERATOR_METHODS(Eq, "=");
     };
 
     struct Neq : public BinaryExpression
     {
-        BINARY_CONSTRUCTOR(Neq);
-        BINARY_TOSTRING("<>");
-        llvm::Value *CodeGenLLVM(LLVMCompilerContext *llvm_cc);
+        BINARY_OPERATOR_METHODS(Neq, "<>");
     };
 
     /////
@@ -521,21 +428,53 @@ namespace AST
     {
         UNARY_CONSTRUCTOR(UnaryPlus);
         UNARY_TOSTRING("+");
-        llvm::Value *CodeGenLLVM(LLVMCompilerContext *llvm_cc);
+        llvm::Value *LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc) override;
     };
 
     struct UnaryMinus : public UnaryExpression
     {
         UNARY_CONSTRUCTOR(UnaryMinus);
         UNARY_TOSTRING("-");
-        llvm::Value *CodeGenLLVM(LLVMCompilerContext *llvm_cc);
+        llvm::Value *LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc) override;
     };
 
     struct Negation : public UnaryExpression
     {
         UNARY_CONSTRUCTOR(Negation);
         UNARY_TOSTRING("NOT");
-        llvm::Value *CodeGenLLVM(LLVMCompilerContext *llvm_cc);
+        llvm::Value *LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc) override;
+    };
+
+    //********************************************************************************************
+    // CONTEXT CLASSES
+
+    struct LLVMCompilerContext
+    {
+        std::unique_ptr<llvm::LLVMContext> context;
+        std::unique_ptr<llvm::IRBuilder<>> ir_builder;
+        std::unique_ptr<llvm::Module> module;
+
+        std::map<std::string, llvm::Value *> local_variables;
+
+        LLVMCompilerContext()
+        {
+            context = std::make_unique<llvm::LLVMContext>();
+            module = std::make_unique<llvm::Module>("my ST compiler", *context);
+            ir_builder = std::make_unique<llvm::IRBuilder<>>(*context);
+        }
+
+        std::string IR_ToString()
+        {
+            std::string ir_code;
+            llvm::raw_string_ostream ostream(ir_code);
+            ostream << *module;
+            return ir_code;
+        }
+    };
+
+    struct LocalScope
+    {
+        std::map<std::string, Variable *> local_variables;
     };
 
 };

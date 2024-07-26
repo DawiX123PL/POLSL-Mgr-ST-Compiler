@@ -69,15 +69,22 @@ int main(int argc, char const *argv[])
     //     }
     // }
 
+    AST::LLVMCompilerContext llvm_cc;
+
     for (Lexer::TokenList t : tokens_from_files)
     {
         AST::PouList pou_list = StParser::Parse(err, t);
         for(AST::PouPtr pou: pou_list){
            std::cout<< pou->ToString() << "\n";
+           pou->CodeGenLLVM(&llvm_cc);
         }
     }
 
+    std::cout << Console::BgDarkCyan("======================================\n");
     Error::PrintErrors(err);
+
+    std::cout << Console::BgDarkCyan("======================================\n");
+    std::cout << llvm_cc.IR_ToString();
 
     std::cout.flush();
 
