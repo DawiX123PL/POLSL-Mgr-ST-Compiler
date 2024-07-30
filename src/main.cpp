@@ -6,7 +6,6 @@
 #include "console/command_line_parser.hpp"
 #include "parser/st_parser.hpp"
 
-
 enum class CommandLineFlags : unsigned int
 {
     HELP,
@@ -70,15 +69,24 @@ int main(int argc, char const *argv[])
     // }
 
     AST::LLVMCompilerContext llvm_cc;
+    AST::PouList pou_list;
 
     for (Lexer::TokenList t : tokens_from_files)
     {
-        AST::PouList pou_list = StParser::Parse(err, t);
-        for(AST::PouPtr pou: pou_list){
-           std::cout<< pou->ToString() << "\n";
-           pou->CodeGenLLVM(&llvm_cc);
-        }
+        AST::PouList pous = StParser::Parse(err, t);
+        pou_list.insert(pou_list.end(), pous.begin(), pous.end());
     }
+
+    for (AST::PouPtr pou : pou_list)
+    {
+        pou->LLVMGenerateDeclaration(&llvm_cc);
+    }
+
+    for (AST::PouPtr pou : pou_list)
+    {
+        pou->LLVMGenerateDefinition(&llvm_cc);
+    }
+
 
     std::cout << Console::BgDarkCyan("======================================\n");
     Error::PrintErrors(err);

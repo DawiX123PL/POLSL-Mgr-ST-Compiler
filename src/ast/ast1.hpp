@@ -38,15 +38,14 @@ namespace AST
     struct LocalScope;
 
     //******************************************************************************************
-
     // interface
     struct Expression
     {
         virtual Type GetType(LocalScope *ls) = 0;
         virtual std::string ToString() = 0;
 
-        virtual llvm::Value *LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc) {return nullptr;};
-        virtual llvm::Value *LLVMGetReference(LocalScope *ls, LLVMCompilerContext *llvm_cc) {return nullptr;};
+        virtual llvm::Value *LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc) { return nullptr; };
+        virtual llvm::Value *LLVMGetReference(LocalScope *ls, LLVMCompilerContext *llvm_cc) { return nullptr; };
     };
 
     typedef std::shared_ptr<Expression> ExprPtr;
@@ -68,7 +67,8 @@ namespace AST
     {
         std::string name;
         virtual std::string ToString() = 0;
-        virtual llvm::Function *CodeGenLLVM(LLVMCompilerContext *llvm_cc) = 0;
+        virtual void LLVMGenerateDeclaration(LLVMCompilerContext *llvm_cc) = 0;
+        virtual void LLVMGenerateDefinition(LLVMCompilerContext *llvm_cc) = 0;
     };
 
     typedef std::shared_ptr<Pou> PouPtr;
@@ -106,7 +106,6 @@ namespace AST
         {
             if (!left || !right)
                 return Type::UNNOWN;
-
 
             Type type_left = left->GetType(ls);
             Type type_right = right->GetType(ls);
@@ -169,7 +168,6 @@ namespace AST
         {
             return Type::FromString(type);
         }
-
     };
 
     typedef std::vector<Variable> VarList;
@@ -186,7 +184,13 @@ namespace AST
 
         std::string ToString();
 
-        llvm::Function *CodeGenLLVM(LLVMCompilerContext *llvm_cc);
+        void LLVMGenerateDeclaration(LLVMCompilerContext *llvm_cc) override;
+        void LLVMGenerateDefinition(LLVMCompilerContext *llvm_cc) override;
+
+    private:
+        llvm::Function *LLVMBuildDeclaration(LLVMCompilerContext *llvm_cc);
+        llvm::Function *LLVMGetDeclaration(LLVMCompilerContext *llvm_cc);
+        llvm::Function *LLVMBuildBody(LLVMCompilerContext *llvm_cc);
     };
 
     struct FunctionBlock : public Pou
@@ -201,11 +205,8 @@ namespace AST
 
         std::string ToString();
 
-        llvm::Function *CodeGenLLVM(LLVMCompilerContext *llvm_cc)
-        {
-            // TODO: FunctionBlock
-            return nullptr;
-        }
+        void LLVMGenerateDeclaration(LLVMCompilerContext *llvm_cc) override;
+        void LLVMGenerateDefinition(LLVMCompilerContext *llvm_cc) override;
     };
 
     struct Program : public Pou
@@ -219,23 +220,30 @@ namespace AST
 
         std::string ToString();
 
-        llvm::Function *CodeGenLLVM(LLVMCompilerContext *llvm_cc)
-        {
-            // TODO: Program
-            return nullptr;
-        }
+        void LLVMGenerateDeclaration(LLVMCompilerContext *llvm_cc) override;
+        void LLVMGenerateDefinition(LLVMCompilerContext *llvm_cc) override;
+
+    private:
+        llvm::FunctionType *GetFunctionType(LLVMCompilerContext *llvm_cc);
+        llvm::Function *LLVMCreateInitDeclaration(LLVMCompilerContext *llvm_cc);
+        llvm::Function *LLVMCreateBodyDeclaration(LLVMCompilerContext *llvm_cc);
+        llvm::Function *LLVMGetInitDeclaration(LLVMCompilerContext *llvm_cc);
+        llvm::Function *LLVMGetBodyDeclaration(LLVMCompilerContext *llvm_cc);
+        llvm::StructType *LLVMGetStructType(LLVMCompilerContext *llvm_cc);
+        void LLVMCreateInit(LLVMCompilerContext *llvm_cc);
+        void LLVMCreateBody(LLVMCompilerContext *llvm_cc);
     };
 
     //********************************************************************************************
 
     struct EmptyStatement : public Statement
     {
-        std::string ToString()
+        std::string ToString() override
         {
             return "{}";
         }
 
-        void CodeGenLLVM(LocalScope *ls, LLVMCompilerContext *llvm_cc)
+        void CodeGenLLVM(LocalScope *ls, LLVMCompilerContext *llvm_cc) override
         {
             // DO NOTHING
             // NO NOT EMIT CODE FROM THIS CLASS
@@ -249,14 +257,14 @@ namespace AST
 
         AssignmentStatement(ExprPtr _var, ExprPtr _expr) : var(_var), expr(_expr) {}
 
-        std::string ToString()
+        std::string ToString() override
         {
             std::string expr_str = expr ? expr->ToString() : "____";
             std::string var_str = var ? var->ToString() : "____";
             return "{" + var_str + " := " + expr_str + "}";
         }
 
-        void CodeGenLLVM(LocalScope *ls, LLVMCompilerContext *llvm_cc);
+        void CodeGenLLVM(LocalScope *ls, LLVMCompilerContext *llvm_cc) override;
     };
 
     struct IfStatement : public Statement
@@ -266,7 +274,7 @@ namespace AST
 
         IfStatement(ExprPtr cond, StmtList stmt_list) : condition(cond), statement_list(stmt_list) {}
 
-        std::string ToString()
+        std::string ToString() override
         {
             std::string expr_str = condition ? condition->ToString() : "____";
             return "{IF " + expr_str + " THEN\n" + StatementListToString(statement_list) + "\n}";
@@ -282,7 +290,7 @@ namespace AST
 
         WhileStatement(ExprPtr cond, StmtList stmt_list) : condition(cond), statement_list(stmt_list) {}
 
-        std::string ToString()
+        std::string ToString() override
         {
             std::string expr_str = condition ? condition->ToString() : "____";
             std::string str = "{\nt\tWHILE " + expr_str + " THEN\n";
@@ -307,11 +315,11 @@ namespace AST
         big_int i_value; // holds integer-like values
         double f_value;  // holds float-like values
 
-        Literal(bool v, Type t) : i_value((int)v), f_value((int)v), type(t) {};
+        Literal(bool v) : i_value((int)v), f_value((int)v), type(Type::BOOL) {};
         Literal(big_int v, Type t) : i_value(v), f_value(v), type(t) {};
         Literal(double v, Type t) : i_value(v), f_value(v), type(t) {};
 
-        Type GetType(LocalScope* ls) override
+        Type GetType(LocalScope *ls) override
         {
             return type;
         }
@@ -329,7 +337,7 @@ namespace AST
             return "_INVALID_";
         }
 
-        llvm::Value *LLVMGetValue(LocalScope* ls, LLVMCompilerContext *llvm_cc) override;
+        llvm::Value *LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc) override;
     };
 
     struct VariableAccess : public Expression
@@ -341,8 +349,8 @@ namespace AST
             return variable_name;
         }
         Type GetType(LocalScope *ls) override;
-        llvm::Value *LLVMGetValue(LocalScope* ls, LLVMCompilerContext *llvm_cc) override;
-        llvm::Value *LLVMGetReference(LocalScope* ls, LLVMCompilerContext *llvm_cc) override;
+        llvm::Value *LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc) override;
+        llvm::Value *LLVMGetReference(LocalScope *ls, LLVMCompilerContext *llvm_cc) override;
     };
 
     //********************************************************************************************
@@ -476,5 +484,11 @@ namespace AST
     {
         std::map<std::string, Variable *> local_variables;
     };
+
+    //******************************************************************************************
+    // llvm helper functions
+
+    llvm::Type *TypeToLLVMType(Type t, LLVMCompilerContext *llvm_cc);
+    llvm::AllocaInst *CreateEntryBlockAlloca(LLVMCompilerContext *llvm_cc, llvm::Function *function, Variable &var);
 
 };

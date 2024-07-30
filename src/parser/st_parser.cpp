@@ -265,7 +265,7 @@ namespace StParser
         if (!ExpectToken(err, tokens, 1, Lexer::TokenType::IDENTIFIER))
             return AST::MakePou(function_block);
 
-        if (!ExpectToken(err, tokens, -1, Lexer::TokenType::END_FUNCTION))
+        if (!ExpectToken(err, tokens, -1, Lexer::TokenType::END_FUNCTION_BLOCK))
             return AST::MakePou(function_block);
 
         std::string pou_name = tokens[1].str;
@@ -311,7 +311,7 @@ namespace StParser
         if (!ExpectToken(err, tokens, 1, Lexer::TokenType::IDENTIFIER))
             return AST::MakePou(program);
 
-        if (!ExpectToken(err, tokens, -1, Lexer::TokenType::END_FUNCTION))
+        if (!ExpectToken(err, tokens, -1, Lexer::TokenType::END_PROGRAM))
             return AST::MakePou(program);
 
         std::string pou_name = tokens[1].str;

@@ -5,29 +5,33 @@ project(st_compiler)
 # source files 
 
 set(SOURCES   
-    src/console/command_line_parser.hpp
-    src/console/color.cpp 
-    src/console/color.hpp
-    src/file/file_utils.cpp 
-    src/file/file_utils.hpp
+    "src/console/command_line_parser.hpp"
+    "src/console/color.cpp"
+    "src/console/color.hpp"
+    "src/file/file_utils.cpp"
+    "src/file/file_utils.hpp"
 
-    src/lexer/st_lexer.cpp
-    src/lexer/st_lexer.hpp
-    src/lexer/st_token_type.cpp
-    src/lexer/st_token_type.hpp
+    "src/lexer/st_lexer.cpp"
+    "src/lexer/st_lexer.hpp"
+    "src/lexer/st_token_type.cpp"
+    "src/lexer/st_token_type.hpp"
 
-    src/parser/st_expression_parser.cpp 
-    src/parser/st_expression_parser.hpp
+    "src/parser/st_expression_parser.cpp "
+    "src/parser/st_expression_parser.hpp"
 
-    src/parser/st_parser.cpp 
-    src/parser/st_parser.hpp
+    "src/parser/st_parser.cpp"
+    "src/parser/st_parser.hpp"
 
-    src/ast/ast1.hpp 
-    src/ast/ast1.cpp 
+    "src/ast/ast1.hpp"
+    "src/ast/ast1.cpp"
 
-    src/error.cpp 
-    src/error.hpp 
-    src/main.cpp
+    "src/ast/function_block.cpp"
+    "src/ast/function.cpp"
+    "src/ast/program.cpp"
+
+    "src/error.cpp"
+    "src/error.hpp"
+    "src/main.cpp"
 )
 
 #***************************************************************************************************************

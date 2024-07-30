@@ -4,7 +4,7 @@
 namespace AST
 {
 
-    llvm::Type* TypeToLLVMType(Type t, LLVMCompilerContext* llvm_cc)
+    llvm::Type *TypeToLLVMType(Type t, LLVMCompilerContext *llvm_cc)
     {
         if (t == Type::DataType::REAL)
         {
@@ -62,211 +62,33 @@ namespace AST
     }
 
     // *********************************************************************************************
-    // ToString
-
-    std::string Function::ToString()
-    {
-        std::string vars_str;
-        vars_str += "var:\n";
-        for (auto v : var)
-            vars_str += "\t" + v.ToString() + "\n";
-
-        vars_str += "var_input:\n";
-        for (auto v : var_input)
-            vars_str += "\t" + v.ToString() + "\n";
-
-        vars_str += "var_output:\n";
-        for (auto v : var_output)
-            vars_str += "\t" + v.ToString() + "\n";
-
-        vars_str += "var_in_out:\n";
-        for (auto v : var_in_out)
-            vars_str += "\t" + v.ToString() + "\n";
-
-        return "{FUNCTION " + name + "\n" + vars_str + "\n" + StatementListToString(statement_list) + "\n}";
-    }
-
-    std::string FunctionBlock::ToString()
-    {
-        std::string vars_str;
-        vars_str += "var:\n";
-        for (auto v : var)
-            vars_str += "\t" + v.ToString() + "\n";
-
-        vars_str += "var_input:\n";
-        for (auto v : var_input)
-            vars_str += "\t" + v.ToString() + "\n";
-
-        vars_str += "var_output:\n";
-        for (auto v : var_output)
-            vars_str += "\t" + v.ToString() + "\n";
-
-        vars_str += "var_in_out:\n";
-        for (auto v : var_in_out)
-            vars_str += "\t" + v.ToString() + "\n";
-
-        return "{FUNCTION_BLOCK  " + name + "\n" + vars_str + "\n" + StatementListToString(statement_list) + "\n}";
-    }
-
-    std::string Program::ToString()
-    {
-        std::string vars_str;
-        vars_str += "var:\n";
-        for (auto v : var)
-            vars_str += "\t" + v.ToString() + "\n";
-
-        vars_str += "var_input:\n";
-        for (auto v : var_input)
-            vars_str += "\t" + v.ToString() + "\n";
-
-        vars_str += "var_output:\n";
-        for (auto v : var_output)
-            vars_str += "\t" + v.ToString() + "\n";
-
-        vars_str += "var_in_out:\n";
-        for (auto v : var_in_out)
-            vars_str += "\t" + v.ToString() + "\n";
-
-        return "{PROGRAM  " + name + "\n" + vars_str + "\n" + StatementListToString(statement_list) + "\n}";
-    }
-
-    // *********************************************************************************************
     // LLVM Codegen
 
     Type VariableAccess::GetType(LocalScope *ls)
     {
         auto iter = ls->local_variables.find(variable_name);
-        if(iter == ls->local_variables.end()){
+        if (iter == ls->local_variables.end())
+        {
             // ERROR - undefined variable
             return Type::UNNOWN;
         }
-        
+
         return iter->second->GetType();
     }
 
     // *********************************************************************************************
-    // LLVM Codegen
+    // LLVM helper functions
 
-    llvm::AllocaInst *CreateEntryBlockAlloca(LLVMCompilerContext *llvm_cc, llvm::Function *function, Variable& var)
+    llvm::AllocaInst *CreateEntryBlockAlloca(LLVMCompilerContext *llvm_cc, llvm::Function *function, Variable &var)
     {
         llvm::IRBuilder<> TmpB(&function->getEntryBlock(), function->getEntryBlock().begin());
         Type type = var.GetType();
-        llvm::Type* lltype = TypeToLLVMType(type, llvm_cc);
-        return TmpB.CreateAlloca(lltype, nullptr, var.name + "@alloca");
+        llvm::Type *lltype = TypeToLLVMType(type, llvm_cc);
+        return TmpB.CreateAlloca(lltype, nullptr, var.name + ".alloca");
     }
 
-    llvm::Function *Function::CodeGenLLVM(LLVMCompilerContext *llvm_cc)
-    {
-        // c equivalent
-        // result_type function_name(input_list, inout_list, output_list);
-
-        std::vector<llvm::Type *> arguments;
-        for (auto v : var_input)
-        {
-            llvm::Type *value_ptr = TypeToLLVMType(v.GetType(), llvm_cc);
-            if (value_ptr)
-            {
-                arguments.push_back(value_ptr);
-            }
-            else
-            {
-                // TODO: emit error
-            }
-        }
-
-        for (auto v : var_in_out)
-        {
-            llvm::Type *value_ptr = llvm::PointerType::get(*llvm_cc->context, 0);
-            if (value_ptr)
-            {
-                arguments.push_back(value_ptr);
-            }
-            else
-            {
-                // TODO: emit error
-            }
-        }
-
-        for (auto v : var_output)
-        {
-            llvm::Type *value_ptr = llvm::PointerType::get(*llvm_cc->context, 0);
-            if (value_ptr)
-            {
-                arguments.push_back(value_ptr);
-            }
-            else
-            {
-                // TODO: emit error
-            }
-        }
-
-        llvm::Type *return_type = result ? TypeToLLVMType(result->GetType(), llvm_cc) : llvm::Type::getVoidTy(*llvm_cc->context);
-        if (!return_type)
-        {
-            // Error
-        }
-
-        llvm::FunctionType *function_type = llvm::FunctionType::get(return_type, arguments, false);
-
-        llvm::Function *function = llvm::Function::Create(
-            function_type,
-            llvm::Function::ExternalLinkage,
-            name, llvm_cc->module.get());
-
-        // end of function declaration
-
-        // function body
-
-        llvm::BasicBlock *bb = llvm::BasicBlock::Create(*llvm_cc->context, "entry", function);
-        llvm_cc->ir_builder->SetInsertPoint(bb);
-
-        // allocate and init local variables
-        LocalScope ls;
-        llvm::Function::arg_iterator arg = function->arg_begin();
-        for (Variable& v : var_input)
-        {
-            llvm::AllocaInst *a = CreateEntryBlockAlloca(llvm_cc, function, v);
-            llvm_cc->ir_builder->CreateStore(arg++, a, false);
-            llvm_cc->local_variables[v.name] = a;
-            ls.local_variables[v.name] = &v;
-        }
-
-        for (Variable& v : var_in_out)
-        {
-            llvm_cc->local_variables[v.name] = arg++;
-            ls.local_variables[v.name] = &v;
-        }
-
-        for (Variable& v : var_output)
-        {
-            llvm_cc->local_variables[v.name] = arg++;
-            ls.local_variables[v.name] = &v;
-        }
-
-        for (Variable& v : var)
-        {
-            llvm::AllocaInst *a = CreateEntryBlockAlloca(llvm_cc, function, v);
-            llvm_cc->local_variables[v.name] = a;
-            ls.local_variables[v.name] = &v;
-        }
-
-        if (result)
-        {
-            llvm::AllocaInst *a = CreateEntryBlockAlloca(llvm_cc, function, *result);
-            llvm_cc->local_variables[result->name] = a;
-            ls.local_variables[result->name] = &(*result);
-        }
-
-        for (auto &s : statement_list)
-        {
-            s->CodeGenLLVM(&ls, llvm_cc);
-            break; // FIXME: remove this in future
-        }
-
-        llvm::verifyFunction(*function);
-
-        return function;
-    }
+    // *********************************************************************************************
+    // LLVM Codegen
 
     void AssignmentStatement::CodeGenLLVM(LocalScope *ls, LLVMCompilerContext *llvm_cc)
     {
@@ -288,11 +110,65 @@ namespace AST
     void IfStatement::CodeGenLLVM(LocalScope *ls, LLVMCompilerContext *llvm_cc)
     {
         // TODO: IfStatement
+
+        llvm::Value *cond = condition->LLVMGetValue(ls, llvm_cc);
+
+        if (!cond)
+            return; // TODO: error
+
+        llvm::Function *function = llvm_cc->ir_builder->GetInsertBlock()->getParent();
+
+        llvm::BasicBlock *if_block = llvm::BasicBlock::Create(*llvm_cc->context, "if", function);
+        llvm::BasicBlock *else_block = llvm::BasicBlock::Create(*llvm_cc->context, "else", function); // todo else
+        llvm::BasicBlock *endif_block = llvm::BasicBlock::Create(*llvm_cc->context, "end_if", function);
+
+        llvm_cc->ir_builder->CreateCondBr(cond, if_block, else_block);
+
+        // insert code in IF block
+        llvm_cc->ir_builder->SetInsertPoint(if_block);
+        for (auto &s : statement_list)
+        {
+            s->CodeGenLLVM(ls, llvm_cc);
+        }
+        llvm_cc->ir_builder->CreateBr(endif_block);
+
+        // insert code in ELSE block
+        llvm_cc->ir_builder->SetInsertPoint(else_block);
+        // TODO: else block code insert here
+
+        llvm_cc->ir_builder->CreateBr(endif_block);
+
+        // endif block
+        llvm_cc->ir_builder->SetInsertPoint(endif_block);
     }
 
     void WhileStatement::CodeGenLLVM(LocalScope *ls, LLVMCompilerContext *llvm_cc)
     {
-        // TODO: WhileStatement
+        llvm::Function *function = llvm_cc->ir_builder->GetInsertBlock()->getParent();
+
+        llvm::BasicBlock *condition_block = llvm::BasicBlock::Create(*llvm_cc->context, "while_condition", function);
+        llvm::BasicBlock *while_block = llvm::BasicBlock::Create(*llvm_cc->context, "while_do", function);
+        llvm::BasicBlock *endwhile_block = llvm::BasicBlock::Create(*llvm_cc->context, "end_while", function);
+
+        llvm_cc->ir_builder->CreateBr(condition_block);
+        llvm_cc->ir_builder->SetInsertPoint(condition_block);
+
+        llvm::Value *cond = condition->LLVMGetValue(ls, llvm_cc);
+        if (!cond)
+            return; // TODO: error
+
+        llvm_cc->ir_builder->CreateCondBr(cond, while_block, endwhile_block);
+
+        llvm_cc->ir_builder->CreateBr(while_block);
+        llvm_cc->ir_builder->SetInsertPoint(while_block);
+
+        for (auto &s : statement_list)
+        {
+            s->CodeGenLLVM(ls, llvm_cc);
+        }
+
+        llvm_cc->ir_builder->CreateBr(endwhile_block);
+        llvm_cc->ir_builder->SetInsertPoint(endwhile_block);
     }
 
     llvm::Value *VariableAccess::LLVMGetReference(LocalScope *ls, LLVMCompilerContext *llvm_cc)
@@ -310,14 +186,14 @@ namespace AST
     llvm::Value *VariableAccess::LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc)
     {
         // TODO: variable access
-        Variable* var = ls->local_variables[variable_name];
+        Variable *var = ls->local_variables[variable_name];
         llvm::Value *a = llvm_cc->local_variables[variable_name];
         if (!a)
         {
             // TODO: ERRROR
             return nullptr;
         }
-        llvm::Type* t = TypeToLLVMType(var->GetType(), llvm_cc);
+        llvm::Type *t = TypeToLLVMType(var->GetType(), llvm_cc);
         return llvm_cc->ir_builder->CreateLoad(t, a, variable_name);
     }
 

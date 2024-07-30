@@ -161,16 +161,16 @@ namespace StParser::Expression
             std::smatch mr;
 
             // check if bool literal
-            if (std::regex_match(token.str, mr, std::regex("BOOL#0|BOOL#FALSE", std::regex_constants::syntax_option_type::icase)))
+            if (std::regex_match(token.str, mr, std::regex("FALSE|BOOL#0|BOOL#FALSE", std::regex_constants::syntax_option_type::icase)))
             {
                 AST::Type type = AST::Type::BOOL;
-                return AST::MakeExpr(AST::Literal(false, type));
+                return AST::MakeExpr(AST::Literal(false));
             }
 
-            if (std::regex_match(token.str, mr, std::regex("BOOL#1|BOOL#TRUE", std::regex_constants::syntax_option_type::icase)))
+            if (std::regex_match(token.str, mr, std::regex("TRUE|BOOL#1|BOOL#TRUE", std::regex_constants::syntax_option_type::icase)))
             {
                 AST::Type type = AST::Type::BOOL;
-                return AST::MakeExpr(AST::Literal(true, type));
+                return AST::MakeExpr(AST::Literal(true));
             }
 
             // check if integer (arbitrary precision)
@@ -244,7 +244,10 @@ namespace StParser::Expression
             // - [ ] check for variable access
             // - [ ] check for function call
             // - [x] check for parenteses
-            if (IsNextToken(Lexer::TokenType::NUMERIC_LITERAL))
+
+            if (IsNextToken(Lexer::TokenType::NUMERIC_LITERAL) ||
+                IsNextToken(Lexer::TokenType::TRUE) ||
+                IsNextToken(Lexer::TokenType::FALSE))
             {
                 // TODO: parse
 

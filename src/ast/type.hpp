@@ -292,6 +292,9 @@ namespace AST
             default:
                 assert(false);
             }
+            return 0; // error case
         }
     };
+
+    
 }
