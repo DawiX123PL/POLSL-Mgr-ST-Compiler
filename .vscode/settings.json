@@ -106,7 +106,8 @@
         "strstream": "cpp",
         "typeindex": "cpp",
         "*.ipp": "cpp",
-        "regex": "cpp"
+        "regex": "cpp",
+        "*.def": "cpp"
     },
     "explorer.excludeGitIgnore": false,
     "cmake.configureOnOpen": false,

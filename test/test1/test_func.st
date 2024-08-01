@@ -26,7 +26,7 @@ END_VAR
 //     END_IF;
 // END_IF;
 
-WHILE c + 1 DO
+WHILE (c + 1) > 1 DO
      x:=-aaa+b+c1;
 END_WHILE;
 

@@ -158,8 +158,6 @@ namespace AST
             return; // TODO: error
 
         llvm_cc->ir_builder->CreateCondBr(cond, while_block, endwhile_block);
-
-        llvm_cc->ir_builder->CreateBr(while_block);
         llvm_cc->ir_builder->SetInsertPoint(while_block);
 
         for (auto &s : statement_list)
@@ -167,7 +165,7 @@ namespace AST
             s->CodeGenLLVM(ls, llvm_cc);
         }
 
-        llvm_cc->ir_builder->CreateBr(endwhile_block);
+        llvm_cc->ir_builder->CreateBr(condition_block); // jump back to check condition
         llvm_cc->ir_builder->SetInsertPoint(endwhile_block);
     }
 

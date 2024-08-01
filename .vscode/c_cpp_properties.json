@@ -4,7 +4,7 @@
             "name": "Win32",
             "includePath": [
                 "${workspaceFolder}/**",
-                "C:\\Program Files\\LLVM\\include",
+                "C:\\Program Files (x86)\\LLVM\\include",
                 "C:\\boost\\include\\boost-1_85"
             ],
             "defines": [

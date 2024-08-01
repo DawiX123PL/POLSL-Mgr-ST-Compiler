@@ -52,7 +52,7 @@ namespace AST
         llvm_cc->ir_builder->CreateCondBr(nullcheck, pointer_null_block, pointer_notnull_block);
 
         llvm_cc->ir_builder->SetInsertPoint(pointer_null_block);
-        llvm::ConstantAggregateZero *zeroinitializer = llvm::ConstantAggregateZero::get(alloca->getAllocatedType());
+        llvm::Constant *zeroinitializer = llvm::Constant::getNullValue(alloca->getAllocatedType());
         llvm_cc->ir_builder->CreateBr(merge_block);
 
         llvm_cc->ir_builder->SetInsertPoint(pointer_notnull_block);
@@ -72,7 +72,7 @@ namespace AST
     static llvm::AllocaInst *CreateOutputVariable(LLVMCompilerContext *llvm_cc, llvm::Function *function, Variable variable)
     {
         llvm::AllocaInst *alloca = CreateEntryBlockAlloca(llvm_cc, function, variable);
-        llvm::ConstantAggregateZero *zeroinitializer = llvm::ConstantAggregateZero::get(alloca->getAllocatedType());
+        llvm::Constant *zeroinitializer = llvm::Constant::getNullValue(alloca->getAllocatedType());
         llvm_cc->ir_builder->CreateStore(zeroinitializer, alloca);
 
         return alloca;
@@ -81,7 +81,7 @@ namespace AST
     static llvm::AllocaInst *CreateTempVariable(LLVMCompilerContext *llvm_cc, llvm::Function *function, Variable variable)
     {
         llvm::AllocaInst *alloca = CreateEntryBlockAlloca(llvm_cc, function, variable);
-        llvm::ConstantAggregateZero *zeroinitializer = llvm::ConstantAggregateZero::get(alloca->getAllocatedType());
+        llvm::Constant *zeroinitializer = llvm::Constant::getNullValue(alloca->getAllocatedType());
         llvm_cc->ir_builder->CreateStore(zeroinitializer, alloca);
 
         return alloca;
@@ -105,7 +105,7 @@ namespace AST
         llvm::Value *alloca_value = llvm_cc->ir_builder->CreateLoad(type, alloca_inst);
         llvm_cc->ir_builder->CreateStore(alloca_value, argument);
 
-        llvm_cc->ir_builder->CreateBr(pointer_notnull_block);
+        llvm_cc->ir_builder->CreateBr(merge_block);
         llvm_cc->ir_builder->SetInsertPoint(merge_block);
     }
 

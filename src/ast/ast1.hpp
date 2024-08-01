@@ -102,7 +102,13 @@ namespace AST
         ExprPtr left;
         ExprPtr right;
         BinaryExpression(ExprPtr l, ExprPtr r) : left(l), right(r) {}
-        Type GetType(LocalScope *ls)
+    };
+
+    class BinaryArithmeticExpression : public BinaryExpression
+    {
+    protected:
+        BinaryArithmeticExpression(ExprPtr l, ExprPtr r) : BinaryExpression(l,r) {}
+        Type GetType(LocalScope *ls) override
         {
             if (!left || !right)
                 return Type::UNNOWN;
@@ -114,6 +120,25 @@ namespace AST
                 return Type::UNNOWN;
 
             return type_left;
+        }
+    };
+
+    class BinaryComparisonExpression : public BinaryExpression
+    {
+    protected:
+        BinaryComparisonExpression(ExprPtr l, ExprPtr r) : BinaryExpression(l,r) {}
+        Type GetType(LocalScope *ls) override
+        {
+            if (!left || !right)
+                return Type::UNNOWN;
+
+            Type type_left = left->GetType(ls);
+            Type type_right = right->GetType(ls);
+
+            if (type_left != type_right)
+                return Type::UNNOWN;
+
+            return Type::BOOL;
         }
     };
 
@@ -355,79 +380,79 @@ namespace AST
 
     //********************************************************************************************
 
-    struct Exponentiation : public BinaryExpression
+    struct Exponentiation : public BinaryArithmeticExpression
     {
-        BINARY_OPERATOR_METHODS(Exponentiation, "**");
+        BINARY_OPERATOR_METHODS(Exponentiation, "**", BinaryArithmeticExpression);
     };
 
-    struct Add : public BinaryExpression
+    struct Add : public BinaryArithmeticExpression
     {
-        BINARY_OPERATOR_METHODS(Add, "+");
+        BINARY_OPERATOR_METHODS(Add, "+", BinaryArithmeticExpression);
     };
 
-    struct Subtract : public BinaryExpression
+    struct Subtract : public BinaryArithmeticExpression
     {
-        BINARY_OPERATOR_METHODS(Subtract, "-");
+        BINARY_OPERATOR_METHODS(Subtract, "-", BinaryArithmeticExpression);
     };
 
-    struct Multiply : public BinaryExpression
+    struct Multiply : public BinaryArithmeticExpression
     {
-        BINARY_OPERATOR_METHODS(Multiply, "*");
+        BINARY_OPERATOR_METHODS(Multiply, "*", BinaryArithmeticExpression);
     };
 
-    struct Divide : public BinaryExpression
+    struct Divide : public BinaryArithmeticExpression
     {
-        BINARY_OPERATOR_METHODS(Divide, "/");
+        BINARY_OPERATOR_METHODS(Divide, "/", BinaryArithmeticExpression);
     };
 
-    struct Modulo : public BinaryExpression
+    struct Modulo : public BinaryArithmeticExpression
     {
-        BINARY_OPERATOR_METHODS(Modulo, "MOD");
+        BINARY_OPERATOR_METHODS(Modulo, "MOD", BinaryArithmeticExpression);
     };
 
-    struct Or : public BinaryExpression
+    struct Or : public BinaryArithmeticExpression
     {
-        BINARY_OPERATOR_METHODS(Or, "OR");
+        BINARY_OPERATOR_METHODS(Or, "OR", BinaryArithmeticExpression);
     };
 
-    struct Xor : public BinaryExpression
+    struct Xor : public BinaryArithmeticExpression
     {
-        BINARY_OPERATOR_METHODS(Xor, "XOR");
+        BINARY_OPERATOR_METHODS(Xor, "XOR", BinaryArithmeticExpression);
     };
 
-    struct And : public BinaryExpression
+    struct And : public BinaryArithmeticExpression
     {
-        BINARY_OPERATOR_METHODS(And, "AND");
+        BINARY_OPERATOR_METHODS(And, "AND", BinaryArithmeticExpression);
     };
 
-    struct Gt : public BinaryExpression
+    struct Gt : public BinaryComparisonExpression
     {
-        BINARY_OPERATOR_METHODS(Gt, ">");
+        BINARY_OPERATOR_METHODS(Gt, ">", BinaryComparisonExpression);
     };
 
-    struct Lt : public BinaryExpression
+    struct Lt : public BinaryComparisonExpression
     {
-        BINARY_OPERATOR_METHODS(Lt, "<");
+        BINARY_OPERATOR_METHODS(Lt, "<", BinaryComparisonExpression);
     };
 
-    struct Geq : public BinaryExpression
+    struct Geq : public BinaryComparisonExpression
     {
-        BINARY_OPERATOR_METHODS(Geq, ">=");
+        BINARY_OPERATOR_METHODS(Geq, ">=", BinaryComparisonExpression);
     };
 
-    struct Leq : public BinaryExpression
+    struct Leq : public BinaryComparisonExpression
     {
-        BINARY_OPERATOR_METHODS(Leq, "<=");
+        BINARY_OPERATOR_METHODS(Leq, "<=", BinaryComparisonExpression);
     };
 
-    struct Eq : public BinaryExpression
+    struct Eq : public BinaryComparisonExpression
     {
-        BINARY_OPERATOR_METHODS(Eq, "=");
+        BINARY_OPERATOR_METHODS(Eq, "=", BinaryComparisonExpression);
     };
 
-    struct Neq : public BinaryExpression
+    struct Neq : public BinaryComparisonExpression
     {
-        BINARY_OPERATOR_METHODS(Neq, "<>");
+        BINARY_OPERATOR_METHODS(Neq, "<>", BinaryComparisonExpression);
     };
 
     /////

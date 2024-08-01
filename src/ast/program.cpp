@@ -102,7 +102,16 @@ namespace AST
 
     llvm::StructType *Program::LLVMGetStructType(LLVMCompilerContext *llvm_cc)
     {
-        // create structure definition
+        std::string struct_name = name + ".struct";
+
+        // check if structure was already defined
+        for (llvm::StructType *str_type : llvm_cc->module->getIdentifiedStructTypes())
+        {
+            if (str_type->getName() == struct_name)
+                return str_type;
+        }
+
+        // create structure definition if not already created
         std::vector<llvm::Type *> variables;
 
         for (auto &v : var)
@@ -110,7 +119,7 @@ namespace AST
             variables.emplace_back(TypeToLLVMType(v.GetType(), llvm_cc));
         }
 
-        llvm::StructType *prog_struct = llvm::StructType::create(*llvm_cc->context, name + ".struct");
+        llvm::StructType *prog_struct = llvm::StructType::create(*llvm_cc->context, struct_name);
         prog_struct->setBody(variables);
 
         return prog_struct;
@@ -143,7 +152,7 @@ namespace AST
             else
             {
                 llvm::Type *type = TypeToLLVMType(variable.GetType(), llvm_cc);
-                initializer_value = llvm::ConstantAggregateZero::get(type); // zero initializer
+                initializer_value = llvm::Constant::getNullValue(type); // zero initializer
             }
 
             // initialize structure variables
@@ -201,7 +210,7 @@ namespace AST
         (void)LLVMCreateInitDeclaration(llvm_cc);
         (void)LLVMCreateBodyDeclaration(llvm_cc);
     };
-    
+
     void Program::LLVMGenerateDefinition(LLVMCompilerContext *llvm_cc)
     {
         LLVMCreateInit(llvm_cc);
