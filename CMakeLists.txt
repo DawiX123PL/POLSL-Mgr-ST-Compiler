@@ -37,13 +37,17 @@ set(SOURCES
 #***************************************************************************************************************
 # executable file
 add_executable(st_compiler ${SOURCES})
-
+add_executable(interpreter 
+"src/interpreter/main.cpp"
+"src/console/color.cpp"
+"src/console/color.hpp"
+)
 
 #***************************************************************************************************************
 # include llvm headers
 # and link llvm binaries
 
-add_definitions(-D_ITERATOR_DEBUG_LEVEL=0) 
+add_definitions(-D_ITERATOR_DEBUG_LEVEL=2) 
 
 find_package(LLVM REQUIRED CONFIG)
 
@@ -54,15 +58,91 @@ include_directories(${LLVM_INCLUDE_DIRS})
 separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
 add_definitions(${LLVM_DEFINITIONS_LIST})
 
-llvm_map_components_to_libnames(llvm_libs support core irreader)
+llvm_map_components_to_libnames(
+    llvm_libs  
+    mc   
+    support 
+    core  
+    irreader
+    
+    
+    aarch64asmparser
+    aarch64codegen
+    aarch64desc
+    aarch64disassembler
+    aarch64info
+    aarch64utils
+    
+    amdgpuasmparser
+    amdgpucodegen
+    amdgpudesc
+    amdgpudisassembler
+    amdgpuinfo
+    amdgputargetmca
+    amdgpuutils
+    
+    armasmparser
+    armcodegen
+    armdesc
+    armdisassembler
+    arminfo
+    armutils
+
+    x86asmparser
+    x86codegen
+    x86desc
+    x86disassembler
+    x86info
+    # x86utils
+    # engine 
+    executionengine
+    interpreter
+
+    MCJIT 
+    ExecutionEngine 
+    Target 
+    Analysis 
+    ProfileData 
+    Symbolize 
+    DebugInfoBTF 
+    DebugInfoPDB 
+    DebugInfoMSF 
+    DebugInfoDWARF 
+    RuntimeDyld 
+    OrcTargetProcess 
+    OrcShared 
+    Object 
+    TextAPI 
+    MCParser 
+    IRReader 
+    AsmParser 
+    BitReader 
+    MC 
+    DebugInfoCodeView 
+    Core 
+    Remarks 
+    BitstreamReader 
+    BinaryFormat 
+    TargetParser 
+    Support 
+    Demangle
+)
+
+
 target_link_libraries(st_compiler ${llvm_libs})
+target_link_libraries(interpreter ${llvm_libs})
 
 set_property(TARGET st_compiler PROPERTY CXX_STANDARD 17)
 set_property(TARGET st_compiler PROPERTY CXX_STANDARD_REQUIRED ON)
 set_property(TARGET st_compiler PROPERTY CMAKE_CXX_EXTENSIONS Off)
 
+set_property(TARGET interpreter PROPERTY CXX_STANDARD 17)
+set_property(TARGET interpreter PROPERTY CXX_STANDARD_REQUIRED ON)
+set_property(TARGET interpreter PROPERTY CMAKE_CXX_EXTENSIONS Off)
+
 if ( MSVC )
-    target_compile_options(st_compiler PRIVATE /MD  /JMC)
+    target_compile_options(st_compiler PRIVATE /MDd  /JMC)
+    target_compile_options(interpreter PRIVATE /MDd  /JMC)
 endif ( MSVC )
 
 #***************************************************************************************************************
@@ -84,7 +164,7 @@ endif()
 
 #***************************************************************************************************************
 # change default out dir
-set_target_properties( st_compiler
+set_target_properties( st_compiler interpreter
     PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/build/"
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/build/"
@@ -99,7 +179,7 @@ set_target_properties( st_compiler
 if ( MSVC )
 
 
-	set_target_properties( st_compiler
+	set_target_properties( st_compiler interpreter
 		PROPERTIES
 		ARCHIVE_OUTPUT_DIRECTORY           "${CMAKE_BINARY_DIR}/build/"
 		ARCHIVE_OUTPUT_DIRECTORY_DEBUG     "${CMAKE_BINARY_DIR}/build/"
