@@ -503,6 +503,7 @@ namespace AST
             ostream << *module;
             return ir_code;
         }
+
     };
 
     struct LocalScope

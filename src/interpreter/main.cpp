@@ -70,34 +70,139 @@
 #include <llvm/TargetParser/Triple.h>
 #include <llvm/Transforms/Instrumentation.h>
 
+typedef void (*ProgramPtr)(void *);
+typedef void (*ProgramInitPtr)(void *);
+
+struct ProgramDescription
+{
+    ProgramPtr program_ptr;
+    ProgramInitPtr program_init_ptr;
+    uint32_t program_size;
+};
+
 static llvm::codegen::RegisterCodeGenFlags CGF;
 
 int main()
 {
     char *ir_code = R"xxxxxx(
 
+; ModuleID = 'my ST compiler'
+source_filename = "my ST compiler"
+target datalayout = "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
+target triple = "x86_64-pc-windows-msvc"
 
-%PLC_PRG.struct = type { i1, float, float, i16 }
+%main.struct = type { i1, float, float, i16 }
 
-define void @PLC_PRG.init(ptr %0) {
+@"@ModuleDescription" = constant <{ ptr, ptr, i32 }> <{ ptr @main, ptr @main.init, i32 16 }>
+
+define i1 @test_func(i16 %0, i16 %1, i16 %2, ptr %3, ptr %4) {
 entry:
-  %v1 = getelementptr inbounds %PLC_PRG.struct, ptr %0, i32 0, i32 0
-  store i1 false, ptr %v1, align 1
-  %v2 = getelementptr inbounds %PLC_PRG.struct, ptr %0, i32 0, i32 1
-  store float 0.000000e+00, ptr %v2, align 4
-  %v3 = getelementptr inbounds %PLC_PRG.struct, ptr %0, i32 0, i32 2
-  store float 0.000000e+00, ptr %v3, align 4
-  %v4 = getelementptr inbounds %PLC_PRG.struct, ptr %0, i32 0, i32 3
-  store i16 0, ptr %v4, align 2
+  %test_func.alloca = alloca i1, align 1
+  %c.alloca = alloca i16, align 2
+  %x.alloca = alloca i16, align 2
+  %b1.alloca = alloca float, align 4
+  %c1.alloca = alloca i16, align 2
+  %b.alloca = alloca i16, align 2
+  %aaa.alloca = alloca i16, align 2
+  store i16 %0, ptr %aaa.alloca, align 2
+  store i16 %1, ptr %b.alloca, align 2
+  store i16 %2, ptr %c1.alloca, align 2
+  %5 = icmp eq ptr %3, null
+  br i1 %5, label %if_pointer_null, label %if_pointer_not_null
+
+if_pointer_null:                                  ; preds = %entry
+  br label %if_merge
+
+if_pointer_not_null:                              ; preds = %entry
+  %6 = load float, ptr %3, align 4
+  br label %if_merge
+
+if_merge:                                         ; preds = %if_pointer_not_null, %if_pointer_null
+  %in_out_value = phi float [ %6, %if_pointer_not_null ], [ 0.000000e+00, %if_pointer_null ]
+  store float %in_out_value, ptr %b1.alloca, align 4
+  store i16 0, ptr %x.alloca, align 2
+  store i16 0, ptr %c.alloca, align 2
+  store i1 false, ptr %test_func.alloca, align 1
+  br label %while_condition
+
+while_condition:                                  ; preds = %while_do, %if_merge
+  %c = load i16, ptr %c.alloca, align 2
+  %7 = add i16 %c, 0
+  %8 = icmp sgt i16 %7, 0
+  br i1 %8, label %while_do, label %end_while
+
+while_do:                                         ; preds = %while_condition
+  %aaa = load i16, ptr %aaa.alloca, align 2
+  %9 = sub i16 0, %aaa
+  %b = load i16, ptr %b.alloca, align 2
+  %10 = add i16 %9, %b
+  %c1 = load i16, ptr %c1.alloca, align 2
+  %11 = add i16 %10, %c1
+  store i16 %11, ptr %x.alloca, align 2
+  br label %while_condition
+
+end_while:                                        ; preds = %while_condition
+  br label %return_block
+
+return_block:                                     ; preds = %end_while
+  %is_not_null = icmp ne ptr %3, null
+  br i1 %is_not_null, label %if_pointer_notnull, label %if_merge1
+
+if_pointer_notnull:                               ; preds = %return_block
+  %12 = load float, ptr %b1.alloca, align 4
+  store float %12, ptr %3, align 4
+  br label %if_merge1
+
+if_merge1:                                        ; preds = %if_pointer_notnull, %return_block
+  %is_not_null4 = icmp ne ptr %4, null
+  br i1 %is_not_null4, label %if_pointer_notnull2, label %if_merge3
+
+if_pointer_notnull2:                              ; preds = %if_merge1
+  %13 = load i16, ptr %x.alloca, align 2
+  store i16 %13, ptr %4, align 2
+  br label %if_merge3
+
+if_merge3:                                        ; preds = %if_pointer_notnull2, %if_merge1
+  %result = load i1, ptr %test_func.alloca, align 1
+  ret i1 %result
+}
+
+define float @fahrenheit_to_celsius(float %0) {
+entry:
+  %fahrenheit_to_celsius.alloca = alloca float, align 4
+  %f.alloca = alloca float, align 4
+  store float %0, ptr %f.alloca, align 4
+  store float 0.000000e+00, ptr %fahrenheit_to_celsius.alloca, align 4
+  %f = load float, ptr %f.alloca, align 4
+  %1 = fsub float %f, 0.000000e+00
+  %2 = fdiv float %1, 0.000000e+00
+  store float %2, ptr %fahrenheit_to_celsius.alloca, align 4
+  br label %return_block
+
+return_block:                                     ; preds = %entry
+  %result = load float, ptr %fahrenheit_to_celsius.alloca, align 4
+  ret float %result
+}
+
+define void @main.init(ptr %0) {
+entry:
+  %v1 = getelementptr inbounds %main.struct, ptr %0, i32 0, i32 0
+  store i1 true, ptr %v1, align 1
+  %v2 = getelementptr inbounds %main.struct, ptr %0, i32 0, i32 1
+  store float 1.0, ptr %v2, align 4
+  %v3 = getelementptr inbounds %main.struct, ptr %0, i32 0, i32 2
+  store float 2137.0, ptr %v3, align 4
+  %v4 = getelementptr inbounds %main.struct, ptr %0, i32 0, i32 3
+  store i16 420, ptr %v4, align 2
   ret void
 }
 
-define void @PLC_PRG(ptr %0) {
+define void @main(ptr %0) {
 entry:
-  %v1 = getelementptr inbounds %PLC_PRG.struct, ptr %0, i32 0, i32 0
-  %v2 = getelementptr inbounds %PLC_PRG.struct, ptr %0, i32 0, i32 1
-  %v3 = getelementptr inbounds %PLC_PRG.struct, ptr %0, i32 0, i32 2
-  %v4 = getelementptr inbounds %PLC_PRG.struct, ptr %0, i32 0, i32 3
+  %v1 = getelementptr inbounds %main.struct, ptr %0, i32 0, i32 0
+  %v2 = getelementptr inbounds %main.struct, ptr %0, i32 0, i32 1
+  %v3 = getelementptr inbounds %main.struct, ptr %0, i32 0, i32 2
+  %v4 = getelementptr inbounds %main.struct, ptr %0, i32 0, i32 3
   %v21 = load float, ptr %v2, align 4
   %v32 = load float, ptr %v3, align 4
   %1 = fcmp une float %v21, %v32
@@ -105,21 +210,6 @@ entry:
   ret void
 }
 
-; define %PLC_PRG.struct @PLC_PRG.construct() {
-; entry:
-;   %v1 = %PLC_PRG.struct zeroinitializer
-;   ret v1
-; }
-
-; define void @PLC_PRG.construct1() {
-; entry:
-;   ret void
-; }
-
-define %PLC_PRG.struct @PLC_PRG.construct() {
-entry:
-  ret %PLC_PRG.struct { i1 false, float 1.000000e+00, float 1.000000e+00, i16 1 }
-}
 
     )xxxxxx";
     //   ret float %result
@@ -149,57 +239,40 @@ entry:
 
     // engine builder
     llvm::EngineBuilder builder(std::move(module));
-    // builder.setMArch(llvm::codegen::getMArch());
-    // builder.setMCPU(llvm::codegen::getCPUStr());
-    // builder.setMAttrs(llvm::codegen::getFeatureList());
-    // if (auto RM = llvm::codegen::getExplicitRelocModel())
-    //     builder.setRelocationModel(*RM);
-    // if (auto CM = llvm::codegen::getExplicitCodeModel())
-    //     builder.setCodeModel(*CM);
 
-    // builder.setEngineKind(llvm::EngineKind::JIT);
-    builder.setEngineKind(llvm::EngineKind::Interpreter);
+    builder.setEngineKind(llvm::EngineKind::JIT);
+    // builder.setEngineKind(llvm::EngineKind::Interpreter);
 
-    // llvm::RTDyldMemoryManager *RTDyldMM = new llvm::SectionMemoryManager();
-    // builder.setMCJITMemoryManager(std::unique_ptr<llvm::RTDyldMemoryManager>(RTDyldMM));
-
-    // auto o = llvm::CodeGenOpt::parseLevel('0');
-    // builder.setOptLevel(o.value());
-
-//     llvm::TargetOptions Options =
-//       llvm::codegen::InitTargetOptionsFromCodeGenFlags(llvm::sys::getDefaultTargetTriple());
-//   if (llvm::codegen::getFloatABIForCalls() != llvm::FloatABI::Default)
-
-//     Options.FloatABIType = llvm::codegen::getFloatABIForCalls();
-
-//   builder.setTargetOptions(Options);
 
     std::string builder_error;
     builder.setErrorStr(&builder_error);
     std::unique_ptr<llvm::ExecutionEngine> engine(builder.create());
-    // llvm::GenericValue program_struct;
-
-    // find entry point
-
-    std::string program_name = "PLC_PRG";
-    std::string program_name_init = program_name + ".init";
-    std::string program_name_construct = program_name + ".construct";
-
-    llvm::Function *program = engine->FindFunctionNamed(program_name);
-    llvm::Function *program_init = engine->FindFunctionNamed(program_name_init);
-    llvm::Function *program_construct = engine->FindFunctionNamed(program_name_construct);
 
 
-    uint8_t prog_mem [127] = {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA};
-    llvm::GenericValue input;
-    input.PointerVal = prog_mem;
+    // find program description
+    std::string program_name = "main";
+
+    ProgramDescription *program_description = (ProgramDescription*)engine->getGlobalValueAddress("@ModuleDescription");
+
+    // allocate and init program memory
+
+    // uint8_t* program_data = new uint8_t[program_description->program_size];
+    std::unique_ptr<uint8_t[]> program_data = std::make_unique<uint8_t[]>(program_description->program_size);
+    memset(program_data.get(), 0, program_description->program_size);
+    
+    // init program memory
+
+    program_description->program_init_ptr(program_data.get());
+
+    // run PLC scans
+    // (execute program body in loop)
+    while(true)
+    {
+        program_description->program_ptr(program_data.get());
+    }
 
 
-    llvm::GenericValue output;
 
-    output = engine->runFunction(program_init, {input});
-
-    // engine->getFunctionAddress()
 
     return 0;
 }

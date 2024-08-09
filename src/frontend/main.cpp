@@ -1,6 +1,6 @@
 #include <string>
 #include <iostream>
-#include "error.hpp"
+#include "../error/error.hpp"
 #include "lexer/st_lexer.hpp"
 #include "file/file_utils.hpp"
 #include "console/command_line_parser.hpp"
@@ -13,6 +13,7 @@
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Support/FileSystem.h>
+#include <llvm/IR/DataLayout.h>
 
 enum class CommandLineFlags : unsigned int
 {
@@ -38,6 +39,67 @@ CommandLineParser<CommandLineFlags> ParseCommandLine(int argc, char const *argv[
     return command_line;
 }
 
+llvm::Constant*LLVMSizeof(AST::LLVMCompilerContext *llvm_cc, llvm::Type *type)
+{
+    llvm::TypeSize size = llvm_cc->module->getDataLayout().getTypeAllocSize(type);
+    uint64_t size_int = size.getFixedValue();
+
+    llvm::Type* int_type = llvm::IntegerType::getInt32Ty(*llvm_cc->context);
+    llvm::Constant* const_val = llvm::ConstantInt::get(int_type, llvm::APInt(32, size_int, false));
+
+    return const_val;
+}
+
+void CreateProgramDescription(AST::LLVMCompilerContext *llvm_cc)
+{
+    // setup pointer to main program (structure containing pointer to main and other usefull data)
+
+    std::string program_name = "main";
+    llvm::Function *program = llvm_cc->module->getFunction(program_name);
+    llvm::Function *program_init = llvm_cc->module->getFunction(program_name + ".init");
+    llvm::StructType *program_struct = nullptr;
+    {
+        for (llvm::StructType *prog_struct : llvm_cc->module->getIdentifiedStructTypes())
+        {
+            if (prog_struct->hasName() && prog_struct->getName() == program_name + ".struct")
+            {
+                program_struct = prog_struct;
+            }
+        }
+    }
+
+    assert(program != nullptr && program_init != nullptr && program_struct != nullptr);
+
+    std::vector<llvm::Type *> struct_element_types =
+        {program->getType(),
+         program_init->getType(),
+         llvm::Type::getInt32Ty(*llvm_cc->context)};
+
+    llvm::StructType *struct_type = llvm::StructType::get(
+        *llvm_cc->context,
+        struct_element_types,
+        true);
+
+    // initializer
+
+    
+
+    std::vector<llvm::Constant *> struct_element_values =
+        {program,
+         program_init,
+        LLVMSizeof(llvm_cc, program_struct)};
+
+    llvm::Constant *struct_value = llvm::ConstantStruct::get(struct_type, struct_element_values);
+
+    llvm::GlobalVariable *GV = new llvm::GlobalVariable(
+        *llvm_cc->module,
+        struct_type,
+        true,
+        llvm::GlobalValue::LinkageTypes::ExternalLinkage,
+        struct_value,
+        "@ModuleDescription");
+}
+
 int main(int argc, char const *argv[])
 {
     Error::ErrorList_t err;
@@ -56,9 +118,6 @@ int main(int argc, char const *argv[])
     std::vector<File> files = ReadFileList(err, command_line.GetFiles());
 
     std::vector<Lexer::TokenList> tokens_from_files = Lexer::TokenizeFiles(err, files);
-
-    AST::LLVMCompilerContext llvm_cc;
-    AST::PouList pou_list;
 
 
     // llvm::InitializeAllTargetInfos();
@@ -81,8 +140,11 @@ int main(int argc, char const *argv[])
 
     llvm::TargetOptions opt;
     auto TargetMachine = Target->createTargetMachine(tt, CPU, Features, opt, llvm::Reloc::PIC_);
-    
+
     auto dl = TargetMachine->createDataLayout();
+
+    AST::LLVMCompilerContext llvm_cc;
+    AST::PouList pou_list;
 
     llvm_cc.module->setTargetTriple(tt);
     llvm_cc.module->setDataLayout(dl);
@@ -102,6 +164,9 @@ int main(int argc, char const *argv[])
     {
         pou->LLVMGenerateDefinition(&llvm_cc);
     }
+
+    CreateProgramDescription(&llvm_cc);
+
 
     std::cout << Console::BgDarkCyan("======================================\n");
     Error::PrintErrors(err);
@@ -127,17 +192,14 @@ int main(int argc, char const *argv[])
     llvm::legacy::PassManager pass;
     auto FileType = llvm::CodeGenFileType::ObjectFile;
 
-    if (TargetMachine->addPassesToEmitFile(pass, dest, nullptr, FileType)) {
+    if (TargetMachine->addPassesToEmitFile(pass, dest, nullptr, FileType))
+    {
         llvm::errs() << "TargetMachine can't emit a file of this type";
         return 1;
     }
 
     pass.run(*llvm_cc.module);
     dest.flush();
-
-
-
-
 
     std::cout.flush();
     return 0;
