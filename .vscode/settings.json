@@ -107,7 +107,9 @@
         "typeindex": "cpp",
         "*.ipp": "cpp",
         "regex": "cpp",
-        "*.def": "cpp"
+        "*.def": "cpp",
+        "coroutine": "cpp",
+        "resumable": "cpp"
     },
     "explorer.excludeGitIgnore": false,
     "cmake.configureOnOpen": false,

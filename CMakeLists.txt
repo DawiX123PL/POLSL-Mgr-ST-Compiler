@@ -4,44 +4,48 @@ project(st_compiler)
 #***************************************************************************************************************
 # source files 
 
-set(SOURCES   
-    "src/console/command_line_parser.hpp"
+set(FRONTEND_SOURCES   
+    "src/position.hpp"
+    "src/frontend/main.cpp"
+    "src/frontend/ast/ast1_makros.hpp"
+    "src/frontend/ast/ast1.cpp"
+    "src/frontend/ast/ast1.hpp"
+    "src/frontend/ast/function_block.cpp"
+    "src/frontend/ast/function.cpp"
+    "src/frontend/ast/program.cpp"
+    "src/frontend/ast/type.hpp"
+    "src/frontend/lexer/st_lexer.cpp"
+    "src/frontend/lexer/st_lexer.hpp"
+    "src/frontend/lexer/st_token_type.cpp"
+    "src/frontend/lexer/st_token_type.hpp"
+    "src/frontend/parser/int_parse.hpp"
+    "src/frontend/parser/st_expression_parser.cpp"
+    "src/frontend/parser/st_expression_parser.hpp"
+    "src/frontend/parser/st_parser.cpp"
+    "src/frontend/parser/st_parser.hpp"
     "src/console/color.cpp"
     "src/console/color.hpp"
-    "src/file/file_utils.cpp"
+    "src/console/command_line_parser.hpp"
+    "src/error/error.cpp"
+    "src/error/error.hpp"
+    "src/file/file_utils.cpp" 
     "src/file/file_utils.hpp"
-
-    "src/lexer/st_lexer.cpp"
-    "src/lexer/st_lexer.hpp"
-    "src/lexer/st_token_type.cpp"
-    "src/lexer/st_token_type.hpp"
-
-    "src/parser/st_expression_parser.cpp "
-    "src/parser/st_expression_parser.hpp"
-
-    "src/parser/st_parser.cpp"
-    "src/parser/st_parser.hpp"
-
-    "src/ast/ast1.hpp"
-    "src/ast/ast1.cpp"
-
-    "src/ast/function_block.cpp"
-    "src/ast/function.cpp"
-    "src/ast/program.cpp"
-
-    "src/error.cpp"
-    "src/error.hpp"
-    "src/main.cpp"
 )
+
+set(INTERPRETER_SOURCES   
+    "src/interpreter/main.cpp"
+    "src/console/color.cpp"
+    "src/console/color.hpp"
+)
+
 
 #***************************************************************************************************************
 # executable file
-add_executable(st_compiler ${SOURCES})
-add_executable(interpreter 
-"src/interpreter/main.cpp"
-"src/console/color.cpp"
-"src/console/color.hpp"
-)
+add_executable(st_compiler ${FRONTEND_SOURCES})
+add_executable(interpreter ${INTERPRETER_SOURCES})
+
+target_include_directories(st_compiler PUBLIC "src")
+target_include_directories(interpreter PUBLIC "src")
 
 #***************************************************************************************************************
 # include llvm headers
@@ -64,23 +68,7 @@ llvm_map_components_to_libnames(
     support 
     core  
     irreader
-    
-    
-    aarch64asmparser
-    aarch64codegen
-    aarch64desc
-    aarch64disassembler
-    aarch64info
-    aarch64utils
-    
-    amdgpuasmparser
-    amdgpucodegen
-    amdgpudesc
-    amdgpudisassembler
-    amdgpuinfo
-    amdgputargetmca
-    amdgpuutils
-    
+        
     armasmparser
     armcodegen
     armdesc

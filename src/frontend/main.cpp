@@ -98,6 +98,8 @@ void CreateProgramDescription(AST::LLVMCompilerContext *llvm_cc)
         llvm::GlobalValue::LinkageTypes::ExternalLinkage,
         struct_value,
         "@ModuleDescription");
+
+    GV->setSection("main.symbol_table");
 }
 
 int main(int argc, char const *argv[])
@@ -126,19 +128,38 @@ int main(int argc, char const *argv[])
     // llvm::InitializeAllAsmParsers();
     // llvm::InitializeAllAsmPrinters();
 
-    llvm::InitializeNativeTarget();
-    llvm::InitializeNativeTargetAsmParser();
-    llvm::InitializeNativeTargetAsmPrinter();
+    LLVMInitializeARMTarget();
+    LLVMInitializeARMTargetInfo();
+    LLVMInitializeARMAsmPrinter();
+    LLVMInitializeARMAsmParser();
+    LLVMInitializeARMTargetMC();
 
-    auto tt = llvm::sys::getDefaultTargetTriple();
+    // llvm::InitializeNativeTarget();
+    // llvm::InitializeNativeTargetAsmParser();
+    // llvm::InitializeNativeTargetAsmPrinter();
+
+
+    // auto tt = llvm::sys::getDefaultTargetTriple();
+    // std::string tt = "armv7em-none-eabi";
+    std::string tt = "thumbv7em-none-unknown-eabihf";
+
 
     std::string Error;
     auto Target = llvm::TargetRegistry::lookupTarget(tt, Error);
 
-    auto CPU = "generic";
+    // auto CPU = "generic";
+    // auto Features = "";
+
+    auto CPU = "cortex-m4";
     auto Features = "";
 
     llvm::TargetOptions opt;
+    opt.FloatABIType = llvm::FloatABI::ABIType::Hard;
+    // opt.ExceptionModel = llvm::ExceptionHandling::
+    opt.ThreadModel = llvm::ThreadModel::Single;
+    opt.ExceptionModel = llvm::ExceptionHandling::None;
+
+
     auto TargetMachine = Target->createTargetMachine(tt, CPU, Features, opt, llvm::Reloc::PIC_);
 
     auto dl = TargetMachine->createDataLayout();
@@ -178,10 +199,10 @@ int main(int argc, char const *argv[])
     auto TargetTriple = llvm::sys::getDefaultTargetTriple();
     std::cout << "Compiling for target: " << TargetTriple << "\n";
 
-    for (llvm::Function &func : llvm_cc.module->getFunctionList())
-    {
-        // func.viewCFG();
-    }
+    // for (llvm::Function &func : llvm_cc.module->getFunctionList())
+    // {
+    //     // func.viewCFG();
+    // }
 
     auto Filename = "output.o";
     std::error_code EC;
@@ -191,6 +212,7 @@ int main(int argc, char const *argv[])
 
     llvm::legacy::PassManager pass;
     auto FileType = llvm::CodeGenFileType::ObjectFile;
+    // auto FileType = llvm::CodeGenFileType::AssemblyFile;
 
     if (TargetMachine->addPassesToEmitFile(pass, dest, nullptr, FileType))
     {

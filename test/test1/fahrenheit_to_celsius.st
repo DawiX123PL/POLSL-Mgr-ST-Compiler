@@ -12,7 +12,7 @@ fahrenheit_to_celsius := (f - REAL#32.0) / REAL#1.8;
 END_FUNCTION
 
 
-PROGRAM PLC_PRG
+PROGRAM main
     
     VAR
         v1: BOOL := TRUE;

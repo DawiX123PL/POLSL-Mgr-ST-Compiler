@@ -1,5 +1,5 @@
 #include "ast1.hpp"
-#include "../console/color.hpp"
+#include "console/color.hpp"
 
 namespace AST
 {
