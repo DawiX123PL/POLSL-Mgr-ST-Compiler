@@ -38,14 +38,20 @@ set(INTERPRETER_SOURCES
     "src/console/color.hpp"
 )
 
+set(PACKAGER_SOURCES
+    src/packager/main.cpp
+)
+
 
 #***************************************************************************************************************
 # executable file
 add_executable(st_compiler ${FRONTEND_SOURCES})
 add_executable(interpreter ${INTERPRETER_SOURCES})
+add_executable(packager ${PACKAGER_SOURCES})
 
 target_include_directories(st_compiler PUBLIC "src")
 target_include_directories(interpreter PUBLIC "src")
+target_include_directories(packager PUBLIC "src")
 
 #***************************************************************************************************************
 # include llvm headers
@@ -63,8 +69,10 @@ separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
 add_definitions(${LLVM_DEFINITIONS_LIST})
 
 llvm_map_components_to_libnames(
-    llvm_libs  
-    mc   
+# libraries object
+    st_compiler_llvm_libraries  
+
+# required libraries
     support 
     core  
     irreader
@@ -76,49 +84,32 @@ llvm_map_components_to_libnames(
     arminfo
     armutils
 
+    # x86asmparser
+    # x86codegen
+    # x86desc
+    # x86disassembler
+    # x86info
+)
+
+llvm_map_components_to_libnames(
+# libraries object
+    interpreter_llvm_libraries  
+    
+# required libraries
     x86asmparser
     x86codegen
     x86desc
     x86disassembler
     x86info
-    # x86utils
-    # engine 
-    executionengine
-    interpreter
 
     MCJIT 
-    ExecutionEngine 
-    Target 
-    Analysis 
-    ProfileData 
-    Symbolize 
-    DebugInfoBTF 
-    DebugInfoPDB 
-    DebugInfoMSF 
-    DebugInfoDWARF 
-    RuntimeDyld 
-    OrcTargetProcess 
-    OrcShared 
-    Object 
-    TextAPI 
-    MCParser 
-    IRReader 
-    AsmParser 
-    BitReader 
-    MC 
-    DebugInfoCodeView 
-    Core 
-    Remarks 
-    BitstreamReader 
-    BinaryFormat 
-    TargetParser 
-    Support 
-    Demangle
+    executionengine
+    interpreter
 )
 
 
-target_link_libraries(st_compiler ${llvm_libs})
-target_link_libraries(interpreter ${llvm_libs})
+target_link_libraries(st_compiler ${st_compiler_llvm_libraries})
+target_link_libraries(interpreter ${interpreter_llvm_libraries})
 
 set_property(TARGET st_compiler PROPERTY CXX_STANDARD 17)
 set_property(TARGET st_compiler PROPERTY CXX_STANDARD_REQUIRED ON)
@@ -128,9 +119,14 @@ set_property(TARGET interpreter PROPERTY CXX_STANDARD 17)
 set_property(TARGET interpreter PROPERTY CXX_STANDARD_REQUIRED ON)
 set_property(TARGET interpreter PROPERTY CMAKE_CXX_EXTENSIONS Off)
 
+set_property(TARGET packager PROPERTY CXX_STANDARD 17)
+set_property(TARGET packager PROPERTY CXX_STANDARD_REQUIRED ON)
+set_property(TARGET packager PROPERTY CMAKE_CXX_EXTENSIONS Off)
+
 if ( MSVC )
     target_compile_options(st_compiler PRIVATE /MDd  /JMC)
     target_compile_options(interpreter PRIVATE /MDd  /JMC)
+    target_compile_options(packager PRIVATE /MDd  /JMC)
 endif ( MSVC )
 
 #***************************************************************************************************************
@@ -146,18 +142,21 @@ find_package(Boost)
 if(Boost_FOUND)
     include_directories(${Boost_INCLUDE_DIRS})
     target_compile_options(st_compiler PUBLIC -DBOOST_ALL_NO_LIB)
+    target_compile_options(interpreter PUBLIC -DBOOST_ALL_NO_LIB)
+    target_compile_options(packager PUBLIC -DBOOST_ALL_NO_LIB)
 else()
     message(FATAL_ERROR "Could not find Boost libraries")
 endif()
 
 #***************************************************************************************************************
 # change default out dir
-set_target_properties( st_compiler interpreter
+set_target_properties( st_compiler interpreter packager
     PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/build/"
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/build/"
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/build/"
 )
+
 
 # target_compile_options(st_compiler PUBLIC "-Wunused-result" "-Wall")
 
@@ -167,7 +166,7 @@ set_target_properties( st_compiler interpreter
 if ( MSVC )
 
 
-	set_target_properties( st_compiler interpreter
+	set_target_properties( st_compiler interpreter packager
 		PROPERTIES
 		ARCHIVE_OUTPUT_DIRECTORY           "${CMAKE_BINARY_DIR}/build/"
 		ARCHIVE_OUTPUT_DIRECTORY_DEBUG     "${CMAKE_BINARY_DIR}/build/"

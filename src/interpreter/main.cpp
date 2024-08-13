@@ -233,8 +233,8 @@ entry:
 
     // llvm::StructType * str = *module->getIdentifiedStructTypes().begin();
 
-    LLVMInitializeNativeAsmParser();
-    LLVMInitializeNativeAsmPrinter();
+    // LLVMInitializeNativeAsmParser();
+    // LLVMInitializeNativeAsmPrinter();
     LLVMInitializeNativeTarget();
 
     // engine builder

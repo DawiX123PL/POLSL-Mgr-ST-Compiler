@@ -1,13 +1,13 @@
 
 
 
-FUNCTION fahrenheit_to_celsius : REAL
+FUNCTION fahrenheit_to_celsius : LREAL
 
 VAR_INPUT
-    f: REAL;
+    f: LREAL;
 END_VAR
 
-fahrenheit_to_celsius := (f - REAL#32.0) / REAL#1.8;
+fahrenheit_to_celsius := (f - LREAL#32.0) / LREAL#1.8;
 
 END_FUNCTION
 
@@ -16,8 +16,8 @@ PROGRAM main
     
     VAR
         v1: BOOL := TRUE;
-        v2: REAL;
-        v3: REAL;
+        v2: LREAL;
+        v3: LREAL;
         v4: INT;
     END_VAR
 
