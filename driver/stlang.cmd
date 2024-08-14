@@ -10,7 +10,9 @@ arm-none-eabi-gcc -T plc_linker_script.ld -fdata-sections -ffunction-sections -O
 @REM emit binary code
 llvm-objcopy -O binary output.elf output.bin
 
+@REM create binary package
 "../build/build/packager" -modules plc_modules.modules -bin output.bin -o output.package
 
-
+@REM send package to plc
+"../build/build/sender" -i output.package --address "192.168.1.106" --port 2000
 

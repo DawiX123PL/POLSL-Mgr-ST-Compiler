@@ -247,7 +247,12 @@ bool DataFrame::PushHex(const uint8_t *const array, uint32_t array_size)
     if (available_space < needed_space)
         return false;
 
+    if(datablock_size >= datablocks_capacity)
+        return false;
+
     buffer[buffer_size - 1] = ';';
+
+    char* begin = &buffer[buffer_size];
 
     for (uint32_t i = 0; i < array_size; i++)
     {
@@ -256,7 +261,10 @@ bool DataFrame::PushHex(const uint8_t *const array, uint32_t array_size)
         BufferPush(chars.second);
     }
 
+    datablocks[datablock_size++].str = std::string_view(begin, array_size * 2); 
+
     BufferPush('\n');
+
 
     return true;
 }
@@ -288,5 +296,5 @@ bool DataFrame::Data::GetHex(uint8_t *const array, uint32_t array_size, uint32_t
     }
 
     *received_bytes = array_size;
-    return false;
+    return true;
 }

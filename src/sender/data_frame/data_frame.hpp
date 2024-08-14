@@ -68,14 +68,20 @@ public:
         uint32_t old_buffer_size = buffer_size;
 
         bool is_first_block = buffer_size == 0;
-        char *separator_ptr = nullptr;
+        char *separator_ptr;
+        char *begin;
 
         if (is_first_block)
         {
+            separator_ptr = nullptr;
+            begin = buffer;
+        }
+        else
+        {
             separator_ptr = &buffer[buffer_size - 1]; // this must be later changed to ';'
+            begin = separator_ptr + 1; // byte after separator
         }
 
-        char *begin = separator_ptr + 1; // byte after separator
         char *buffer_end = &buffer[buffer_capacity - 1];
 
         // sanity checks
@@ -112,7 +118,7 @@ public:
         datablocks[datablock_size].str = std::string_view(begin, last_char - begin);
         datablock_size++;
 
-        if (is_first_block && separator_ptr != nullptr)
+        if (!is_first_block && separator_ptr != nullptr)
         {
             *separator_ptr = ';';
         }

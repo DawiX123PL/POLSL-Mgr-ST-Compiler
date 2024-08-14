@@ -35,6 +35,35 @@ bool ReadFile(std::string file_name, std::vector<uint8_t> *content)
     return true;
 }
 
+DataFrame SocketReadFrame(boost::asio::ip::tcp::socket &socket, boost::system::error_code &ec)
+{
+
+    boost::asio::streambuf buffer;
+    boost::asio::read_until(socket, buffer, '\n', ec);
+
+    // boost::asio::async_read_until()
+    DataFrame rx_frame;
+    rx_frame.Clear();
+
+    if (ec)
+    {
+        return rx_frame;
+    }
+
+    std::istream is(&buffer);
+    std::string line;
+    std::getline(is, line);
+
+    for (char c : line)
+    {
+        rx_frame.BufferPush(c);
+    }
+    rx_frame.BufferPush('\n');
+
+    rx_frame.Parse();
+    return rx_frame;
+}
+
 enum class CommandLineFlags : unsigned int
 {
     HELP,
@@ -61,7 +90,7 @@ CommandLineParser<CommandLineFlags> ParseCommandLine(int argc, char const *argv[
     return command_line;
 }
 
-int main(int argc, char **argv)
+int main(int argc, const char **argv)
 {
     CommandLineParser<CommandLineFlags> cli = ParseCommandLine(argc, argv);
 
@@ -91,13 +120,13 @@ int main(int argc, char **argv)
 
     if (!cli.IsFlagUsed(CommandLineFlags::PLC_ADDRESS))
     {
-        std::cout << "Missing address of PLC device \n";
+        std::cout << "Error: Missing address of PLC device \n";
         return -1;
     }
 
     if (cli.GetFlagArgs(CommandLineFlags::PLC_ADDRESS).size() < 1)
     {
-        std::cout << "Missing address of PLC device \n";
+        std::cout << "Error: Missing address of PLC device \n";
         return -1;
     }
 
@@ -106,7 +135,7 @@ int main(int argc, char **argv)
 
     if (ec)
     {
-        std::cout << "Invalid devide address \n";
+        std::cout << "Error: Invalid devide address \n";
         return -1;
     }
 
@@ -123,52 +152,93 @@ int main(int argc, char **argv)
     boost::asio::ip::tcp::endpoint endpoint(address, port);
     boost::asio::ip::tcp::socket socket(io_context);
 
+    std::cout << "Connecting to: " << endpoint << " \n";
     socket.connect(endpoint, ec);
 
     if (ec)
     {
-        std::cout << "Unable to connect to devide: " << endpoint << " \n";
+        std::cout << "Error: Unable to connect to devide: " << endpoint << " \n";
         socket.close();
         return -1;
     }
 
-    DataFrame rx_frame;
-
     int index = 0;
     while (index < package_file_content.size())
     {
+        uint8_t *begin = &package_file_content[index];
+        uint32_t size = std::min(128ull, index - package_file_content.size());
+        std::cout << "sending: \taddr = " << index << " \tbytes = " << size << "\n";
+
         DataFrame tx_frame;
         tx_frame.Push("PROGMEM");
         tx_frame.Push("W");
-
-        uint8_t *begin = &package_file_content[index];
-        uint32_t size = std::min(128ull, index - package_file_content.size());
+        tx_frame.Push(index);
 
         tx_frame.PushHex(begin, size);
 
         index += size;
 
         // send tcp package
-        socket.write_some(ec);
+        socket.write_some(boost::asio::buffer(tx_frame.BufferGet()), ec);
         if (ec)
         {
-            std::cout << "Device disconnected \n";
+            std::cout << "Error: Device disconnected: " << ec.to_string() << " \n";
             socket.close();
             return -1;
         }
 
         // wait for response
-        // {
-        //     uint8_t buffer[128];
-        //     uint32_t rx_byte_count = socket.read_some(buffer, ec);
-        //     for (int i = 0; i < rx_byte_count; i++)
-        //     {
-        //         rx_frame.BufferPush(buffer[i]);
-        //         if(buffer[i]){
 
-        //         }
-        //     }
-        // }
+        DataFrame rx = SocketReadFrame(socket, ec);
+
+        if (ec)
+        {
+            std::cout << "Error: Device disconnected: " << ec.to_string() << " \n";
+            socket.close();
+            return -1;
+        }
+
+        if (rx[0].Get<std::string_view>() == "PROGMEM" && rx[1].Get<std::string_view>() == "OK")
+        {
+            continue;
+        }
+
+        std::cout << "Error: Unexpected response from device: " << rx.BufferGet() << " \n";
+        socket.close();
+        return -1;
+    }
+
+    // verify
+    {
+        std::cout << "Verifying Package Integrity" << " \n";
+
+        DataFrame tx_frame;
+        tx_frame.Push("PROGMEM");
+        tx_frame.Push("VERIFY");
+
+        socket.write_some(boost::asio::buffer(tx_frame.BufferGet()), ec);
+        if (ec)
+        {
+            std::cout << "Error: Device disconnected: " << ec.to_string() << " \n";
+            socket.close();
+            return -1;
+        }
+
+        DataFrame rx = SocketReadFrame(socket, ec);
+
+        if (ec)
+        {
+            std::cout << "Error: Device disconnected: " << ec.to_string() << " \n";
+            socket.close();
+            return -1;
+        }
+
+        if (rx[0].Get<std::string_view>() != "PROGMEM" || rx[1].Get<std::string_view>() != "OK")
+        {
+            std::cout << "Error: Unexpected response from device: " << rx.BufferGet() << " \n";
+            socket.close();
+            return -1;
+        }
     }
 
     std::cout << "Successfuly sended package file \n";

@@ -133,6 +133,15 @@
             "-o",
             "output.package",
         ],
+        // "args": [
+        //     "-i",
+        //     "output.package",
+        //     "--address",
+        //     "192.168.1.106",
+        //     // "127.0.0.1",
+        //     "--port",
+        //     "2000",
+        // ],
 
     },
     "autoHide.autoHideSideBar": false,

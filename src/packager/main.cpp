@@ -61,9 +61,17 @@ CommandLineParser<CommandLineFlags> ParseCommandLine(int argc, char const *argv[
     return command_line;
 }
 
-uint32_t CrcCalculate(uint8_t *data, uint32_t size)
+uint32_t Crc32CalculateSoft(uint8_t *data, uint32_t size)
 {
-    boost::crc_32_type crc;
+    constexpr uint32_t bytes = 32;
+    constexpr uint32_t polynomial = 0x4C11DB7;
+    constexpr uint32_t init_val = 0xFFFFFFFF;
+    constexpr uint32_t final_xor = 0x0;
+    constexpr bool input_reflected  = false;
+    constexpr bool output_reflected = false;
+
+    boost::crc_optimal<bytes, polynomial, init_val, final_xor, input_reflected, output_reflected> crc;
+
     crc.process_bytes(data, size);
 
     uint32_t checksum = crc.checksum();
@@ -223,7 +231,7 @@ int main(int argc, const char *argv[])
     }
 
     // calculate crc
-    block.crc = CrcCalculate((uint8_t *)&block.code, sizeof(block.code));
+    block.crc = Crc32CalculateSoft((uint8_t *)&block.code, sizeof(block.code));
 
     if (!WriteFile(output_package_path, (uint8_t *)&block, sizeof(block)))
     {

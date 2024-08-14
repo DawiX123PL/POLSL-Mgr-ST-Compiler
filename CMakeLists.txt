@@ -39,8 +39,15 @@ set(INTERPRETER_SOURCES
 )
 
 set(PACKAGER_SOURCES
-    src/packager/main.cpp
+    "src/packager/main.cpp"
 )
+
+set(SENDER_SOURCES
+    "src/sender/data_frame/data_frame.cpp"
+    "src/sender/data_frame/data_frame.hpp"
+    "src/sender/main.cpp"
+)
+
 
 
 #***************************************************************************************************************
@@ -48,10 +55,12 @@ set(PACKAGER_SOURCES
 add_executable(st_compiler ${FRONTEND_SOURCES})
 add_executable(interpreter ${INTERPRETER_SOURCES})
 add_executable(packager ${PACKAGER_SOURCES})
+add_executable(sender ${SENDER_SOURCES})
 
 target_include_directories(st_compiler PUBLIC "src")
 target_include_directories(interpreter PUBLIC "src")
 target_include_directories(packager PUBLIC "src")
+target_include_directories(sender PUBLIC "src")
 
 #***************************************************************************************************************
 # include llvm headers
@@ -123,10 +132,15 @@ set_property(TARGET packager PROPERTY CXX_STANDARD 17)
 set_property(TARGET packager PROPERTY CXX_STANDARD_REQUIRED ON)
 set_property(TARGET packager PROPERTY CMAKE_CXX_EXTENSIONS Off)
 
+set_property(TARGET sender PROPERTY CXX_STANDARD 17)
+set_property(TARGET sender PROPERTY CXX_STANDARD_REQUIRED ON)
+set_property(TARGET sender PROPERTY CMAKE_CXX_EXTENSIONS Off)
+
 if ( MSVC )
     target_compile_options(st_compiler PRIVATE /MDd  /JMC)
     target_compile_options(interpreter PRIVATE /MDd  /JMC)
     target_compile_options(packager PRIVATE /MDd  /JMC)
+    target_compile_options(sender PRIVATE /MDd  /JMC)
 endif ( MSVC )
 
 #***************************************************************************************************************
@@ -144,13 +158,14 @@ if(Boost_FOUND)
     target_compile_options(st_compiler PUBLIC -DBOOST_ALL_NO_LIB)
     target_compile_options(interpreter PUBLIC -DBOOST_ALL_NO_LIB)
     target_compile_options(packager PUBLIC -DBOOST_ALL_NO_LIB)
+    target_compile_options(sender PUBLIC -DBOOST_ALL_NO_LIB)
 else()
     message(FATAL_ERROR "Could not find Boost libraries")
 endif()
 
 #***************************************************************************************************************
 # change default out dir
-set_target_properties( st_compiler interpreter packager
+set_target_properties( st_compiler interpreter packager sender
     PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/build/"
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/build/"
@@ -166,7 +181,7 @@ set_target_properties( st_compiler interpreter packager
 if ( MSVC )
 
 
-	set_target_properties( st_compiler interpreter packager
+	set_target_properties( st_compiler interpreter packager sender
 		PROPERTIES
 		ARCHIVE_OUTPUT_DIRECTORY           "${CMAKE_BINARY_DIR}/build/"
 		ARCHIVE_OUTPUT_DIRECTORY_DEBUG     "${CMAKE_BINARY_DIR}/build/"
