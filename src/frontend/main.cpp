@@ -30,7 +30,7 @@ void RegisterCommands(CommandLineParser<CommandLineFlags> *command_line)
     command_line->RegisterFlag(CommandLineFlags::OUTPUT_FILE, 1, {"-o"});
     command_line->RegisterFlag(CommandLineFlags::VERBOSE, 0, {"-v", "--verbose"});
     command_line->RegisterFlag(CommandLineFlags::OUTPUT_C_HEADER, 1, {"--output-c-header"});
-    command_line->RegisterFlag(CommandLineFlags::TARGET_TRIPLE, 1, {"--target"});
+    command_line->RegisterFlag(CommandLineFlags::TARGET_TRIPLE, 1, {"-target"});
 }
 
 CommandLineParser<CommandLineFlags> ParseCommandLine(int argc, char const *argv[])
@@ -159,9 +159,9 @@ int main(int argc, char const *argv[])
 
     LLVMInitializeARMTarget();
     LLVMInitializeARMTargetInfo();
+    LLVMInitializeARMTargetMC();
     // LLVMInitializeARMAsmPrinter();
     // LLVMInitializeARMAsmParser();
-    // LLVMInitializeARMTargetMC();
 
     llvm::InitializeNativeTarget();
     llvm::InitializeNativeTargetAsmParser();
