@@ -163,13 +163,18 @@ else()
     message(FATAL_ERROR "Could not find Boost libraries")
 endif()
 
+
+#***************************************************************************************************************
+# Copy GCC object files to build directory
+file(COPY "${PROJECT_SOURCE_DIR}/arm-none-eabi-gcc_libs/lib" DESTINATION "${CMAKE_BINARY_DIR}/build")
+
 #***************************************************************************************************************
 # change default out dir
 set_target_properties( st_compiler interpreter packager sender
     PROPERTIES
-    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/build/"
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/build/"
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/build/"
+    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/build/bin"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/build/bin"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/build/bin"
 )
 
 
@@ -183,15 +188,15 @@ if ( MSVC )
 
 	set_target_properties( st_compiler interpreter packager sender
 		PROPERTIES
-		ARCHIVE_OUTPUT_DIRECTORY           "${CMAKE_BINARY_DIR}/build/"
-		ARCHIVE_OUTPUT_DIRECTORY_DEBUG     "${CMAKE_BINARY_DIR}/build/"
-		ARCHIVE_OUTPUT_DIRECTORY_RELEASE   "${CMAKE_BINARY_DIR}/build/"
-		LIBRARY_OUTPUT_DIRECTORY           "${CMAKE_BINARY_DIR}/build/"
-		LIBRARY_OUTPUT_DIRECTORY_DEBUG     "${CMAKE_BINARY_DIR}/build/"
-		LIBRARY_OUTPUT_DIRECTORY_RELEASE   "${CMAKE_BINARY_DIR}/build/"
-		RUNTIME_OUTPUT_DIRECTORY           "${CMAKE_BINARY_DIR}/build/"
-		RUNTIME_OUTPUT_DIRECTORY_DEBUG     "${CMAKE_BINARY_DIR}/build/"
-		RUNTIME_OUTPUT_DIRECTORY_RELEASE   "${CMAKE_BINARY_DIR}/build/"
+		ARCHIVE_OUTPUT_DIRECTORY           "${CMAKE_BINARY_DIR}/build/bin"
+		ARCHIVE_OUTPUT_DIRECTORY_DEBUG     "${CMAKE_BINARY_DIR}/build/bin"
+		ARCHIVE_OUTPUT_DIRECTORY_RELEASE   "${CMAKE_BINARY_DIR}/build/bin"
+		LIBRARY_OUTPUT_DIRECTORY           "${CMAKE_BINARY_DIR}/build/bin"
+		LIBRARY_OUTPUT_DIRECTORY_DEBUG     "${CMAKE_BINARY_DIR}/build/bin"
+		LIBRARY_OUTPUT_DIRECTORY_RELEASE   "${CMAKE_BINARY_DIR}/build/bin"
+		RUNTIME_OUTPUT_DIRECTORY           "${CMAKE_BINARY_DIR}/build/bin"
+		RUNTIME_OUTPUT_DIRECTORY_DEBUG     "${CMAKE_BINARY_DIR}/build/bin"
+		RUNTIME_OUTPUT_DIRECTORY_RELEASE   "${CMAKE_BINARY_DIR}/build/bin"
 	)
 
 endif ( MSVC )
