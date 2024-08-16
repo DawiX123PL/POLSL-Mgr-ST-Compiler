@@ -21,6 +21,7 @@ enum class CommandLineFlags : unsigned int
     OUTPUT_FILE,
     VERBOSE,
     OUTPUT_C_HEADER,
+    TARGET_TRIPLE
 };
 
 void RegisterCommands(CommandLineParser<CommandLineFlags> *command_line)
@@ -29,6 +30,7 @@ void RegisterCommands(CommandLineParser<CommandLineFlags> *command_line)
     command_line->RegisterFlag(CommandLineFlags::OUTPUT_FILE, 1, {"-o"});
     command_line->RegisterFlag(CommandLineFlags::VERBOSE, 0, {"-v", "--verbose"});
     command_line->RegisterFlag(CommandLineFlags::OUTPUT_C_HEADER, 1, {"--output-c-header"});
+    command_line->RegisterFlag(CommandLineFlags::TARGET_TRIPLE, 1, {"--target"});
 }
 
 CommandLineParser<CommandLineFlags> ParseCommandLine(int argc, char const *argv[])
@@ -39,13 +41,13 @@ CommandLineParser<CommandLineFlags> ParseCommandLine(int argc, char const *argv[
     return command_line;
 }
 
-llvm::Constant*LLVMSizeof(AST::LLVMCompilerContext *llvm_cc, llvm::Type *type)
+llvm::Constant *LLVMSizeof(AST::LLVMCompilerContext *llvm_cc, llvm::Type *type)
 {
     llvm::TypeSize size = llvm_cc->module->getDataLayout().getTypeAllocSize(type);
     uint64_t size_int = size.getFixedValue();
 
-    llvm::Type* int_type = llvm::IntegerType::getInt32Ty(*llvm_cc->context);
-    llvm::Constant* const_val = llvm::ConstantInt::get(int_type, llvm::APInt(32, size_int, false));
+    llvm::Type *int_type = llvm::IntegerType::getInt32Ty(*llvm_cc->context);
+    llvm::Constant *const_val = llvm::ConstantInt::get(int_type, llvm::APInt(32, size_int, false));
 
     return const_val;
 }
@@ -82,12 +84,10 @@ void CreateProgramDescription(AST::LLVMCompilerContext *llvm_cc)
 
     // initializer
 
-    
-
     std::vector<llvm::Constant *> struct_element_values =
         {program,
          program_init,
-        LLVMSizeof(llvm_cc, program_struct)};
+         LLVMSizeof(llvm_cc, program_struct)};
 
     llvm::Constant *struct_value = llvm::ConstantStruct::get(struct_type, struct_element_values);
 
@@ -102,11 +102,47 @@ void CreateProgramDescription(AST::LLVMCompilerContext *llvm_cc)
     GV->setSection("main.symbol_table");
 }
 
+// This function might be removed
+// void EmitExecutable()
+// {
+//     auto Filename = "output.o";
+//     std::error_code EC;
+
+//     std::string output;
+//     llvm::raw_fd_ostream dest(Filename, EC, llvm::sys::fs::OF_None);
+
+//     llvm::legacy::PassManager pass;
+//     auto FileType = llvm::CodeGenFileType::ObjectFile;
+//     // auto FileType = llvm::CodeGenFileType::AssemblyFile;
+
+//     if (TargetMachine->addPassesToEmitFile(pass, dest, nullptr, FileType))
+//     {
+//         llvm::errs() << "TargetMachine can't emit a file of this type";
+//         return 1;
+//     }
+
+//     {
+//         for (auto &t_ptr : llvm::TargetRegistry::targets())
+//         {
+//             std::cout << "TARGET: " << t_ptr.getShortDescription() << "\n";
+//         }
+//     }
+
+//     pass.run(*llvm_cc.module);
+//     dest.flush();
+// }
+
 int main(int argc, char const *argv[])
 {
     Error::ErrorList_t err;
 
     CommandLineParser<CommandLineFlags> command_line = ParseCommandLine(argc, argv);
+
+    bool IsVerbose = false;
+    if (command_line.IsFlagUsed(CommandLineFlags::VERBOSE))
+    {
+        IsVerbose = true;
+    }
 
     // read files
     std::vector<std::string> input_file_paths = command_line.GetFiles();
@@ -121,47 +157,37 @@ int main(int argc, char const *argv[])
 
     std::vector<Lexer::TokenList> tokens_from_files = Lexer::TokenizeFiles(err, files);
 
-
-    // llvm::InitializeAllTargetInfos();
-    // llvm::InitializeAllTargets();
-    // llvm::InitializeAllTargetMCs();
-    // llvm::InitializeAllAsmParsers();
-    // llvm::InitializeAllAsmPrinters();
-
     LLVMInitializeARMTarget();
     LLVMInitializeARMTargetInfo();
-    LLVMInitializeARMAsmPrinter();
-    LLVMInitializeARMAsmParser();
-    LLVMInitializeARMTargetMC();
+    // LLVMInitializeARMAsmPrinter();
+    // LLVMInitializeARMAsmParser();
+    // LLVMInitializeARMTargetMC();
 
-    // llvm::InitializeNativeTarget();
-    // llvm::InitializeNativeTargetAsmParser();
-    // llvm::InitializeNativeTargetAsmPrinter();
+    llvm::InitializeNativeTarget();
+    llvm::InitializeNativeTargetAsmParser();
+    llvm::InitializeNativeTargetAsmPrinter();
 
-
-    // auto tt = llvm::sys::getDefaultTargetTriple();
-    // std::string tt = "armv7em-none-eabi";
-    std::string tt = "thumbv7em-none-unknown-eabihf";
-
+    std::string tt = llvm::sys::getDefaultTargetTriple(); // this will be default if not -target is provided
+    if (command_line.IsFlagUsed(CommandLineFlags::TARGET_TRIPLE))
+    {
+        if (command_line.GetFlagArgs(CommandLineFlags::TARGET_TRIPLE).size() >= 1)
+        {
+            tt = command_line.GetFlagArgs(CommandLineFlags::TARGET_TRIPLE)[0];
+        }
+    }
 
     std::string Error;
     auto Target = llvm::TargetRegistry::lookupTarget(tt, Error);
 
-    // auto CPU = "generic";
-    // auto Features = "";
-
-    auto CPU = "cortex-m4";
+    auto CPU = "";
     auto Features = "";
 
     llvm::TargetOptions opt;
-    opt.FloatABIType = llvm::FloatABI::ABIType::Hard;
-    // opt.ExceptionModel = llvm::ExceptionHandling::
-    opt.ThreadModel = llvm::ThreadModel::Single;
-    opt.ExceptionModel = llvm::ExceptionHandling::None;
-
+    // opt.FloatABIType = llvm::FloatABI::ABIType::Soft;
+    // opt.ThreadModel = llvm::ThreadModel::Single;
+    // opt.ExceptionModel = llvm::ExceptionHandling::None;
 
     auto TargetMachine = Target->createTargetMachine(tt, CPU, Features, opt, llvm::Reloc::PIC_);
-
     auto dl = TargetMachine->createDataLayout();
 
     AST::LLVMCompilerContext llvm_cc;
@@ -188,40 +214,40 @@ int main(int argc, char const *argv[])
 
     CreateProgramDescription(&llvm_cc);
 
-
-    std::cout << Console::BgDarkCyan("======================================\n");
     Error::PrintErrors(err);
+    if (err.size())
+    {
+        return -1;
+    }
 
-    std::cout << Console::BgDarkCyan("======================================\n");
-    std::cout << llvm_cc.IR_ToString();
+    File output_ir_file;
+    output_ir_file.path = "output.ll";
+    output_ir_file.content = llvm_cc.IR_ToString();
 
-    std::cout << Console::BgDarkCyan("======================================\n");
-    auto TargetTriple = llvm::sys::getDefaultTargetTriple();
-    std::cout << "Compiling for target: " << TargetTriple << "\n";
+    if (command_line.IsFlagUsed(CommandLineFlags::OUTPUT_FILE))
+    {
+        if (command_line.GetFlagArgs(CommandLineFlags::OUTPUT_FILE).size() >= 1)
+        {
+            output_ir_file.path = command_line.GetFlagArgs(CommandLineFlags::OUTPUT_FILE)[0];
+        }
+    }
+
+    if (IsVerbose)
+    {
+        std::cout << Console::BgDarkCyan("======================================\n");
+        std::cout << "Saving IR code at: " << output_ir_file.path << "\n";
+        std::cout << Console::BgDarkCyan("======================================\n");
+        std::cout << output_ir_file.content << "\n";
+        std::cout << Console::BgDarkCyan("======================================\n");
+        std::cout << "Emiting IR for target: " << TargetMachine->getTargetTriple().str() << "\n";
+    }
+
+    WriteFile(err, &output_ir_file);
 
     // for (llvm::Function &func : llvm_cc.module->getFunctionList())
     // {
     //     // func.viewCFG();
     // }
-
-    auto Filename = "output.o";
-    std::error_code EC;
-
-    std::string output;
-    llvm::raw_fd_ostream dest(Filename, EC, llvm::sys::fs::OF_None);
-
-    llvm::legacy::PassManager pass;
-    auto FileType = llvm::CodeGenFileType::ObjectFile;
-    // auto FileType = llvm::CodeGenFileType::AssemblyFile;
-
-    if (TargetMachine->addPassesToEmitFile(pass, dest, nullptr, FileType))
-    {
-        llvm::errs() << "TargetMachine can't emit a file of this type";
-        return 1;
-    }
-
-    pass.run(*llvm_cc.module);
-    dest.flush();
 
     std::cout.flush();
     return 0;

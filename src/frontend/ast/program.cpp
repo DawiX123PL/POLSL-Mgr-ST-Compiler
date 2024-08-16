@@ -32,8 +32,11 @@ namespace AST
         llvm::raw_string_ostream ostream(code_err);
         llvm::verifyFunction(*function, &ostream);
 
-        std::cout << "\n"
-                  << Console::FgBrightRed(code_err) << "\n";
+        if (code_err.size())
+        {
+            std::cout << "\n"
+                      << Console::FgBrightRed(code_err) << "\n";
+        }
     }
 
     llvm::FunctionType *Program::GetFunctionType(LLVMCompilerContext *llvm_cc)
@@ -119,8 +122,8 @@ namespace AST
             variables.emplace_back(TypeToLLVMType(v.GetType(), llvm_cc));
         }
 
-        llvm::StructType *prog_struct = llvm::StructType::create(*llvm_cc->context, struct_name);
-        prog_struct->setBody(variables);
+        // create packed struct - to minimize memory consumption
+        llvm::StructType *prog_struct = llvm::StructType::create(*llvm_cc->context, variables, struct_name, true); 
 
         return prog_struct;
     }

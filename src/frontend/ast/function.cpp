@@ -114,9 +114,12 @@ namespace AST
         std::string code_err;
         llvm::raw_string_ostream ostream(code_err);
         llvm::verifyFunction(*function, &ostream);
-
-        std::cout << "\n"
-                  << Console::FgBrightRed(code_err) << "\n";
+        
+        if (code_err.size())
+        {
+            std::cout << "\n"
+                      << Console::FgBrightRed(code_err) << "\n";
+        }
     }
 
     llvm::Function *Function::LLVMGetDeclaration(LLVMCompilerContext *llvm_cc)

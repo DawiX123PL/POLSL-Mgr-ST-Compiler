@@ -483,11 +483,6 @@ namespace StParser::Expression
                 PushError(Error::UnexpectedTokenError(GetCurrentToken().pos, GetCurrentToken().type));
             }
 
-            if (expr)
-            {
-                std::cout << "\t" << expr->ToString() << "\n";
-            }
-
             return expr;
         }
     };

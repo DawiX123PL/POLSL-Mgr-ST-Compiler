@@ -93,11 +93,11 @@ llvm_map_components_to_libnames(
     arminfo
     armutils
 
-    # x86asmparser
-    # x86codegen
-    # x86desc
-    # x86disassembler
-    # x86info
+    x86asmparser
+    x86codegen
+    x86desc
+    x86disassembler
+    x86info
 )
 
 llvm_map_components_to_libnames(

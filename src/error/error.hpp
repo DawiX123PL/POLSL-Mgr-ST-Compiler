@@ -334,7 +334,7 @@ namespace Error
     };
 
     //*****************************************************************************************************
-    // Cannot Read File 
+    // Cannot Read/write File 
 
     class CannotReadFile : public BasicError
     {
@@ -342,6 +342,20 @@ namespace Error
 
     public:
         CannotReadFile(std::string _path)
+            : path(_path){};
+
+        std::string ToString() const override
+        {
+            return "Cannot Read file content : " + path;
+        };
+    };
+
+    class CannotWriteFile : public BasicError
+    {
+        std::string path;
+
+    public:
+        CannotWriteFile(std::string _path)
             : path(_path){};
 
         std::string ToString() const override

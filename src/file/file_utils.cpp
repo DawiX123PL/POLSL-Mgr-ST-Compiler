@@ -8,14 +8,26 @@ static bool ReadFileContent(std::string file_name, std::string *result);
 static bool WriteFileContent(std::string file_name, const std::string &file_content);
 static void PrintFileContent(std::string file_content);
 
+// returns true if operation was successful
+bool WriteFile(Error::ErrorList_t err, File *file)
+{
+
+    if (!WriteFileContent(file->path, file->content))
+    {
+        Error::PushError(err, Error::CannotReadFile(file->path));
+        return false;
+    }
+
+    return true;
+}
 
 // returns true if operation was successful
-bool ReadFile(Error::ErrorList_t err, std::string path, File* file)
+bool ReadFile(Error::ErrorList_t err, std::string path, File *file)
 {
     file->path = path;
     file->content = "";
-    
-    if(!ReadFileContent(path, &file->content))
+
+    if (!ReadFileContent(path, &file->content))
     {
         Error::PushError(err, Error::CannotReadFile(path));
         return false;
@@ -26,18 +38,18 @@ bool ReadFile(Error::ErrorList_t err, std::string path, File* file)
 
 std::vector<File> ReadFileList(Error::ErrorList_t err, std::vector<std::string> path_list)
 {
-    std::vector<File> files; 
+    std::vector<File> files;
 
-    for(int i = 0; i < path_list.size(); i++)
+    for (int i = 0; i < path_list.size(); i++)
     {
         File f;
-        if(ReadFile(err, path_list[i], &f))
+        if (ReadFile(err, path_list[i], &f))
         {
             files.push_back(f);
         }
     }
 
-    return files; 
+    return files;
 }
 
 // returns true if operation was successful
@@ -102,7 +114,7 @@ static void PrintFileContent(std::string file_content)
     constexpr int iter_hardlimit = 10000;
 
     int current_pos = 0;
-    for(int i = 0; i < iter_hardlimit; i++)
+    for (int i = 0; i < iter_hardlimit; i++)
     {
         int newline_pos = file_content.find("\n", current_pos);
         if (newline_pos < 0)
