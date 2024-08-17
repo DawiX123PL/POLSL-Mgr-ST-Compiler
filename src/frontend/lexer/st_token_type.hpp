@@ -13,6 +13,8 @@ namespace Lexer
 
         NUMERIC_LITERAL,
 
+        MEMORY_ADDRESS,
+
         // comments
         COMMENT_ONELINE,
         COMMENT_MULTILINE_BRACKET_OPEN,

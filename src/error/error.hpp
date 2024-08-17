@@ -333,6 +333,20 @@ namespace Error
         };
     };
 
+    class InvalidGlobalAddress : public BasicError
+    {
+        Position position;
+
+    public:
+        InvalidGlobalAddress(Position _position)
+            : position(_position){};
+
+        std::string ToString() const override
+        {
+            return "Invalid memory address, at:" + position.ToString();
+        };
+    };
+
     //*****************************************************************************************************
     // Cannot Read/write File 
 

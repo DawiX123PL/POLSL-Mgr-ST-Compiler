@@ -107,7 +107,7 @@ namespace AST
     class BinaryArithmeticExpression : public BinaryExpression
     {
     protected:
-        BinaryArithmeticExpression(ExprPtr l, ExprPtr r) : BinaryExpression(l,r) {}
+        BinaryArithmeticExpression(ExprPtr l, ExprPtr r) : BinaryExpression(l, r) {}
         Type GetType(LocalScope *ls) override
         {
             if (!left || !right)
@@ -126,7 +126,7 @@ namespace AST
     class BinaryComparisonExpression : public BinaryExpression
     {
     protected:
-        BinaryComparisonExpression(ExprPtr l, ExprPtr r) : BinaryExpression(l,r) {}
+        BinaryComparisonExpression(ExprPtr l, ExprPtr r) : BinaryExpression(l, r) {}
         Type GetType(LocalScope *ls) override
         {
             if (!left || !right)
@@ -378,6 +378,90 @@ namespace AST
         llvm::Value *LLVMGetReference(LocalScope *ls, LLVMCompilerContext *llvm_cc) override;
     };
 
+    struct GlobalMemoryAccess : public Expression
+    {
+
+        // I Q M
+        enum class Location
+        {
+            Input = 0,
+            Output = 1,
+            Memory = 2,
+        };
+
+        Location location;
+
+        // enum class Size
+        // {
+        //     BIT,     // X - 1 bit
+        //     BYTE,    // B - 8 bit
+        //     WORD,    // W - 16 bit
+        //     DWORD,   // D - 32 bit
+        //     LWORD,   // L - 64 bit
+        // };
+        uint64_t size;
+
+        // %IX2.0.1
+        // [2] - module nr 2
+        // [0] - byte 0
+        // [1] - bit 1
+        std::vector<uint64_t> address;
+
+        std::string ToString() override
+        {
+            std::string loc;
+            std::string s;
+            switch (location)
+            {
+            case Location::Input:
+                loc = "I";
+                break;
+            case Location::Output:
+                loc = "Q";
+                break;
+            case Location::Memory:
+                loc = "M";
+                break;
+            }
+
+            switch (size)
+            {
+            case 1:
+                s = "X";
+                break;
+            case 8:
+                s = "B";
+                break;
+            case 16:
+                s = "W";
+                break;
+            case 32:
+                s = "D";
+                break;
+            case 64:
+                s = "L";
+                break;
+
+            default:
+                s = "(" + std::to_string(size) + ")";
+                break;
+            }
+
+            std::string all = "%" + loc + s;
+            for (int i = 0; i < address.size(); i++)
+            {
+                all += (i == 0) ? "" : ".";
+                all += std::to_string(address[i]);
+            }
+
+            return all;
+        }
+
+        Type GetType(LocalScope *ls) override;
+        llvm::Value *LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc) override;
+        llvm::Value *LLVMGetReference(LocalScope *ls, LLVMCompilerContext *llvm_cc) override;
+    };
+
     //********************************************************************************************
 
     struct Exponentiation : public BinaryArithmeticExpression
@@ -487,13 +571,37 @@ namespace AST
         std::unique_ptr<llvm::IRBuilder<>> ir_builder;
         std::unique_ptr<llvm::Module> module;
 
+        llvm::Type *global_mem_type;
+
+        llvm::Value * global_mem_ptr;
         std::map<std::string, llvm::Value *> local_variables;
+
+        void CreateGlobalMemoryType()
+        {
+            // create global memory structure type
+            constexpr int number_of_modules = 5;
+            constexpr int bytes_per_module = 5;
+            constexpr int memory_size = 1024;
+
+            llvm::IntegerType *u8_type = llvm::IntegerType::getInt8Ty(*context);
+            llvm::IntegerType *u16_type = llvm::IntegerType::getInt16Ty(*context);
+            llvm::IntegerType *u32_type = llvm::IntegerType::getInt32Ty(*context);
+            llvm::IntegerType *u64_type = llvm::IntegerType::getInt64Ty(*context);
+
+            llvm::Type *input_mem_type = llvm::ArrayType::get(llvm::ArrayType::get(u8_type, bytes_per_module), number_of_modules);
+            llvm::Type *output_mem_type = llvm::ArrayType::get(llvm::ArrayType::get(u8_type, bytes_per_module), number_of_modules);
+            llvm::Type *memory_mem_type = llvm::ArrayType::get(llvm::ArrayType::get(u8_type, bytes_per_module), number_of_modules);
+
+            std::initializer_list mems = {input_mem_type, output_mem_type, memory_mem_type};
+            global_mem_type = llvm::StructType::get(*context, mems, true);
+        }
 
         LLVMCompilerContext()
         {
             context = std::make_unique<llvm::LLVMContext>();
             module = std::make_unique<llvm::Module>("my ST compiler", *context);
             ir_builder = std::make_unique<llvm::IRBuilder<>>(*context);
+            CreateGlobalMemoryType();
         }
 
         std::string IR_ToString()
@@ -503,7 +611,6 @@ namespace AST
             ostream << *module;
             return ir_code;
         }
-
     };
 
     struct LocalScope

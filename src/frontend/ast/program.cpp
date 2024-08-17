@@ -43,9 +43,18 @@ namespace AST
     {
         // create function declaration
         // c equivalent
-        // void ProgramName(PointerToProgramStruct);
+        // void ProgramName(PointerToGlobalMemory, PointerToProgramStruct);
+        // PointerToProgramStruct == this in c++
 
-        std::vector<llvm::Type *> arguments = {llvm::PointerType::get(*llvm_cc->context, 0)};
+        llvm::Type *global_mem_ptr = llvm::PointerType::get(*llvm_cc->context, 0);
+        llvm::Type *this_pointer = llvm::PointerType::get(*llvm_cc->context, 0);
+
+        std::vector<llvm::Type *> arguments =
+            {
+                global_mem_ptr,
+                this_pointer,
+            };
+
         llvm::Type *void_type = llvm::Type::getVoidTy(*llvm_cc->context);
 
         return llvm::FunctionType::get(void_type, arguments, false);
@@ -123,7 +132,7 @@ namespace AST
         }
 
         // create packed struct - to minimize memory consumption
-        llvm::StructType *prog_struct = llvm::StructType::create(*llvm_cc->context, variables, struct_name, true); 
+        llvm::StructType *prog_struct = llvm::StructType::create(*llvm_cc->context, variables, struct_name, true);
 
         return prog_struct;
     }
@@ -140,7 +149,11 @@ namespace AST
 
         // allocate and init local variables
         LocalScope ls; // do not populate ls fields,
+
         llvm::Function::arg_iterator argument = function->arg_begin();
+        llvm_cc->local_variables.clear();
+        llvm_cc->global_mem_ptr = argument;
+        argument++; // skip GlobalMemoryPointer
 
         int struct_element_index = 0;
         for (Variable &variable : var)
@@ -184,6 +197,10 @@ namespace AST
         // allocate and init local variables
         LocalScope ls;
         llvm::Function::arg_iterator argument = function->arg_begin();
+        llvm_cc->global_mem_ptr = argument;
+        argument++; // skip GlobalMemoryPointer
+
+        llvm_cc->local_variables.clear();
 
         int struct_element_index = 0;
         for (Variable &variable : var)

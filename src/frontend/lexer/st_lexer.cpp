@@ -94,17 +94,19 @@ namespace Lexer
         std::string identifier_or_keyword = "[a-zA-Z_][a-zA-Z0-9_]*";
         std::string integer_literal = "[0-9][0-9_]*";
         std::string numeric_literal = "[0-9][0-9_]*(?:[.][0-9][0-9_]*)?(?:[eE][+-]?[0-9][0-9_]*)?";
-        std::string typed_numeric_literal = identifier_or_keyword + "#[a-zA-Z0-9._]*";
+        std::string typed_numeric_literal = identifier_or_keyword + "#[+-]?[a-zA-Z0-9._]*";
         std::string based_numeric_literal = integer_literal + "#[a-zA-Z0-9_]*";
         std::string typed_based_numeric_literal = identifier_or_keyword + "#" + integer_literal + "#[a-zA-Z0-9_]*";
         std::string string_literal1 = R"REGEX(\"(?:\$\"|[^"])*\")REGEX";
         std::string string_literal2 = R"REGEX(\'(?:\$\'|[^'])*\')REGEX";
+        std::string memory_address = R"REGEX(%[a-z-A-Z]?[a-z-A-Z][0-9]+(?:\.[0-9]+)*)REGEX";
 
         RegexBuilder builder;
         std::map<int, TokenType> id_map;
 
         const int id_newline = builder.Push("\\n");
         const int id_white_space = builder.Push("\\s");
+        const int id_memory_address = builder.Push(memory_address);
         const int id_typed_based_numeric_literal = builder.Push(typed_based_numeric_literal);
         const int id_typed_numeric_literal = builder.Push(typed_numeric_literal);
         const int id_based_numeric_literal = builder.Push(based_numeric_literal);
@@ -183,6 +185,13 @@ namespace Lexer
                 id == id_multiline_comment_1 ||
                 id == id_multiline_comment_2)
             {
+                continue;
+            }
+
+            if(id == id_memory_address)
+            {
+                TokenType type = TokenType::MEMORY_ADDRESS;
+                tokens.emplace_back(type, mr.str(), pos);
                 continue;
             }
 

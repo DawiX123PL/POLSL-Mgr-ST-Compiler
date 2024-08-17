@@ -72,8 +72,20 @@ namespace AST
     static llvm::AllocaInst *CreateOutputVariable(LLVMCompilerContext *llvm_cc, llvm::Function *function, Variable variable)
     {
         llvm::AllocaInst *alloca = CreateEntryBlockAlloca(llvm_cc, function, variable);
-        llvm::Constant *zeroinitializer = llvm::Constant::getNullValue(alloca->getAllocatedType());
-        llvm_cc->ir_builder->CreateStore(zeroinitializer, alloca);
+
+        llvm::Value *initial_value = nullptr;
+        if (variable.initial_value != nullptr)
+        {
+            AST::LocalScope ls; // empty local scope
+            variable.initial_value->LLVMGetValue(&ls, llvm_cc);
+        }
+        else
+        {
+            llvm::Constant *zeroinitializer = llvm::Constant::getNullValue(alloca->getAllocatedType());
+            initial_value = zeroinitializer;
+        }
+
+        llvm_cc->ir_builder->CreateStore(initial_value, alloca);
 
         return alloca;
     }
@@ -81,8 +93,20 @@ namespace AST
     static llvm::AllocaInst *CreateTempVariable(LLVMCompilerContext *llvm_cc, llvm::Function *function, Variable variable)
     {
         llvm::AllocaInst *alloca = CreateEntryBlockAlloca(llvm_cc, function, variable);
-        llvm::Constant *zeroinitializer = llvm::Constant::getNullValue(alloca->getAllocatedType());
-        llvm_cc->ir_builder->CreateStore(zeroinitializer, alloca);
+
+        llvm::Value *initial_value = nullptr;
+        if (variable.initial_value != nullptr)
+        {
+            AST::LocalScope ls; // empty local scope
+            initial_value = variable.initial_value->LLVMGetValue(&ls, llvm_cc);
+        }
+        else
+        {
+            llvm::Constant *zeroinitializer = llvm::Constant::getNullValue(alloca->getAllocatedType());
+            initial_value = zeroinitializer;
+        }
+
+        llvm_cc->ir_builder->CreateStore(initial_value, alloca);
 
         return alloca;
     }
@@ -114,7 +138,7 @@ namespace AST
         std::string code_err;
         llvm::raw_string_ostream ostream(code_err);
         llvm::verifyFunction(*function, &ostream);
-        
+
         if (code_err.size())
         {
             std::cout << "\n"
@@ -138,6 +162,12 @@ namespace AST
     llvm::Function *Function::LLVMBuildDeclaration(LLVMCompilerContext *llvm_cc)
     {
         std::vector<llvm::Type *> arguments;
+
+        // first argument is pointer to global memory 
+        llvm::Type *global_mem_ptr = llvm::PointerType::get(*llvm_cc->context, 0);
+
+        arguments.push_back(global_mem_ptr);
+
         for (auto v : var_input)
         {
             llvm::Type *value_ptr = TypeToLLVMType(v.GetType(), llvm_cc);
@@ -208,6 +238,10 @@ namespace AST
         // allocate and init local variables
         LocalScope ls;
         llvm::Function::arg_iterator argument = function->arg_begin();
+        llvm_cc->global_mem_ptr = argument;
+        llvm_cc->local_variables.clear();
+        argument++; // skip GlobalMemoryPointer
+
         for (Variable &variable : var_input)
         {
             llvm_cc->local_variables[variable.name] = CreateInputVariable(llvm_cc, function, argument++, variable);
@@ -253,6 +287,8 @@ namespace AST
         // store local bariables back to IN_OUT and OUTPUT pointers,
 
         argument = function->arg_begin();
+        argument++; // skip global memory pointer
+
         for (Variable &variable : var_input)
         {
             argument++; // skip inputs

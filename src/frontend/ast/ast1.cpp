@@ -197,7 +197,12 @@ namespace AST
 
     llvm::Value *Literal::LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc)
     {
-        int tmp_val = 0; // FIXME: fix this
+        // convert boost::multiprecision to llvm::APint
+        std::vector<uint64_t> bits_vector;
+
+        bool is_negative = i_value.sign();
+        boost::multiprecision::export_bits(i_value, std::back_inserter(bits_vector), 64);
+
         switch (type)
         {
         case Type::BOOL:
@@ -213,12 +218,19 @@ namespace AST
         case Type::UINT:
         case Type::UDINT:
         case Type::ULINT:
-            return llvm::ConstantInt::get(*llvm_cc->context, llvm::APInt(type.GetSize(), tmp_val, type.IsSignedType()));
+        {
+            llvm::APInt value = llvm::APInt(type.GetSize(), bits_vector);
+            if (is_negative)
+            {
+                value.negate();
+            }
+            return llvm::ConstantInt::get(*llvm_cc->context, value);
+        }
 
         case Type::REAL:
-            return llvm::ConstantFP::get(*llvm_cc->context, llvm::APFloat((float)tmp_val));
+            return llvm::ConstantFP::get(*llvm_cc->context, llvm::APFloat((float)f_value));
         case Type::LREAL:
-            return llvm::ConstantFP::get(*llvm_cc->context, llvm::APFloat((double)tmp_val));
+            return llvm::ConstantFP::get(*llvm_cc->context, llvm::APFloat((double)f_value));
 
         case Type::STRUCT:
         case Type::ARRAY:
@@ -238,6 +250,94 @@ namespace AST
         default:
             return nullptr; // TODO: ERROR
         }
+    }
+
+    Type GlobalMemoryAccess::GetType(LocalScope *ls)
+    {
+        switch (size)
+        {
+        case 1:
+            return Type::BOOL;
+        case 8:
+            return Type::BYTE;
+        case 16:
+            return Type::WORD;
+        case 32:
+            return Type::DWORD;
+        case 64:
+            return Type::LWORD;
+        }
+        return Type::UNNOWN;
+    }
+
+    llvm::Value *GlobalMemoryAccess::LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc)
+    {
+
+        // struct GlobalMem
+        // {
+        //     uint8_t input[max_io_modules][bytes_per_module];  // %Ix.x.x
+        //     uint8_t output[max_io_modules][bytes_per_module]; // %Qx.x.x
+        //     uint8_t memory[max_io_modules][bytes_per_module]; // %Mx.x
+        // };
+        // module '0' means adressing CPU module
+
+        // global = {I, Q, M}
+
+        llvm::IntegerType *u8_type = llvm::IntegerType::getInt8Ty(*llvm_cc->context);
+        llvm::IntegerType *u16_type = llvm::IntegerType::getInt16Ty(*llvm_cc->context);
+        llvm::IntegerType *u32_type = llvm::IntegerType::getInt32Ty(*llvm_cc->context);
+        llvm::IntegerType *u64_type = llvm::IntegerType::getInt64Ty(*llvm_cc->context);
+
+        // FIXME: check if address in bounds
+
+        // adresy w gep {0, IQM, Module, ByteInModule}
+        int iqm_address = (int)location;
+        int module_number = address[0];
+        int byte_in_module = address[1];
+
+        std::initializer_list<llvm::Value *> gep_address =
+            {
+                llvm::ConstantInt::get(u32_type, llvm::APInt(32, 0, false)),
+                llvm::ConstantInt::get(u32_type, llvm::APInt(32, iqm_address, false)),
+                llvm::ConstantInt::get(u32_type, llvm::APInt(32, module_number, false)),
+                llvm::ConstantInt::get(u32_type, llvm::APInt(32, byte_in_module, false)),
+            };
+
+        llvm::Value *accessed_address = llvm_cc->ir_builder->CreateGEP(llvm_cc->global_mem_type, llvm_cc->global_mem_ptr, gep_address, this->ToString());
+
+        if (size == 1)
+        {
+            llvm::LoadInst *tmp_8bit = llvm_cc->ir_builder->CreateLoad(u8_type, accessed_address, this->ToString() + "_value_tmp_8bit");
+            llvm::Constant *tmp_mask = llvm::ConstantInt::get(u8_type, llvm::APInt(8, 1 << address[2], false));
+            return llvm_cc->ir_builder->CreateAnd(tmp_8bit, tmp_mask, this->ToString() + "_value");
+        }
+
+        if (size == 8)
+        {
+            return llvm_cc->ir_builder->CreateLoad(u8_type, accessed_address, this->ToString() + "_value");
+        }
+
+        if (size == 16)
+        {
+            return llvm_cc->ir_builder->CreateLoad(u16_type, accessed_address, this->ToString() + "_value");
+        }
+
+        if (size == 32)
+        {
+            return llvm_cc->ir_builder->CreateLoad(u32_type, accessed_address, this->ToString() + "_value");
+        }
+
+        if (size == 64)
+        {
+            return llvm_cc->ir_builder->CreateLoad(u64_type, accessed_address, this->ToString());
+        }
+
+        return nullptr;
+    }
+
+    llvm::Value *GlobalMemoryAccess::LLVMGetReference(LocalScope *ls, LLVMCompilerContext *llvm_cc)
+    {
+        return nullptr;
     }
 
     llvm::Value *Exponentiation::LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc)

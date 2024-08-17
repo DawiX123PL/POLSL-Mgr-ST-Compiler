@@ -12,6 +12,7 @@ namespace StParser::Expression
         RecursiveDescendParser parser;
         parser.AssignError(&err);
 
+        // FIXME: this function might return even if not all tokens were consumed
         return parser.Parse(tokens);
     }
 

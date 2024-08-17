@@ -231,6 +231,67 @@ namespace StParser::Expression
             return nullptr;
         }
 
+        [[nodiscard]] AST::ExprPtr GlobalMemoryAccess()
+        {
+            Lexer::Token token = GetCurrentToken();
+            PopToken();
+
+            std::smatch mr;
+            if (!std::regex_match(token.str, mr, std::regex( "%([IQM])([XBWDL]?)([0-9]+(?:.[0-9]+)*)")))
+            {
+                PushError(Error::InvalidGlobalAddress(token.pos));
+                return nullptr;
+            }
+
+            AST::GlobalMemoryAccess mem_access;
+
+            std::map<std::string, AST::GlobalMemoryAccess::Location> location_names = {
+                {"I", AST::GlobalMemoryAccess::Location::Input},
+                {"Q", AST::GlobalMemoryAccess::Location::Output},
+                {"M", AST::GlobalMemoryAccess::Location::Memory}};
+
+            auto loc = location_names.find(mr[1].str());
+            if (loc == location_names.end())
+            {
+                PushError(Error::InvalidGlobalAddress(token.pos));
+                return nullptr;
+            }
+
+            mem_access.location = loc->second;
+
+            std::map<std::string, uint64_t> size_names = {
+                {"", 1},
+                {"X", 1},
+                {"B", 8},
+                {"W", 16},
+                {"D", 32},
+                {"L", 64},
+            };
+
+            auto size = size_names.find(mr[2].str());
+            if (size == size_names.end())
+            {
+                PushError(Error::InvalidGlobalAddress(token.pos));
+                return nullptr;
+            }
+
+            mem_access.size = size->second;
+
+            std::string::const_iterator next_str = token.str.begin();
+            std::string::const_iterator end_str = token.str.end();
+            while(std::regex_search(next_str, end_str, mr, std::regex("[0-9]+")))
+            {
+                next_str = mr.suffix().first;
+
+                big_int address_num;
+                ParseInteger(mr[0].str(), 10, &address_num);
+
+                mem_access.address.emplace_back(address_num);
+            }
+
+            return AST::MakeExpr(mem_access);
+        }
+
         [[nodiscard]] AST::ExprPtr ParsePrimaryExpression()
         {
             // TODO:
@@ -239,7 +300,7 @@ namespace StParser::Expression
             //     - [ ] char literal
             //     - [ ] time literal
             //     - [ ] bit string literal
-            //     - [ ] bool literal
+            //     - [x] bool literal
             // - [ ] check for enum_value
             // - [ ] check for variable access
             // - [ ] check for function call
@@ -249,9 +310,6 @@ namespace StParser::Expression
                 IsNextToken(Lexer::TokenType::TRUE) ||
                 IsNextToken(Lexer::TokenType::FALSE))
             {
-                // TODO: parse
-
-                // AST::ExprPtr expr = AST::MakeExpr(AST::Literal(token.str));
                 AST::ExprPtr expr = ParseNumericLiteral();
                 return expr;
             }
@@ -263,6 +321,12 @@ namespace StParser::Expression
                 PopToken();
 
                 AST::ExprPtr expr = AST::MakeExpr(AST::VariableAccess(token.str));
+                return expr;
+            }
+
+            else if (IsNextToken(Lexer::TokenType::MEMORY_ADDRESS))
+            {
+                AST::ExprPtr expr = GlobalMemoryAccess();
                 return expr;
             }
 
