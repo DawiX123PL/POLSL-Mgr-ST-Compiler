@@ -92,19 +92,19 @@ namespace AST
 
     void AssignmentStatement::CodeGenLLVM(LocalScope *ls, LLVMCompilerContext *llvm_cc)
     {
-        // TODO: AssignmentStatement
         if (var->GetType(ls) != expr->GetType(ls))
             return; // TODO: ERROR
 
-        llvm::Value *ir_variable = var->LLVMGetReference(ls, llvm_cc);
         llvm::Value *ir_expr = expr->LLVMGetValue(ls, llvm_cc);
 
-        if (!ir_variable)
-            return; // TODO: ERROR
         if (!ir_expr)
             return; // TODO: ERROR
 
-        llvm_cc->ir_builder->CreateStore(ir_expr, ir_variable, false);
+        Lvalue *l_value = dynamic_cast<Lvalue *>(var.get());
+        if (!l_value)
+            return; // TODO: Error: expected lvalue
+
+        l_value->LLVMSetValue(ls, llvm_cc, ir_expr);
     }
 
     void IfStatement::CodeGenLLVM(LocalScope *ls, LLVMCompilerContext *llvm_cc)
@@ -169,16 +169,17 @@ namespace AST
         llvm_cc->ir_builder->SetInsertPoint(endwhile_block);
     }
 
-    llvm::Value *VariableAccess::LLVMGetReference(LocalScope *ls, LLVMCompilerContext *llvm_cc)
+    void VariableAccess::LLVMSetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc, llvm::Value *value)
     {
         // TODO: variable access
         llvm::Value *a = llvm_cc->local_variables[variable_name];
         if (!a)
         {
             // TODO: ERRROR
-            return nullptr;
+            return;
         }
-        return a;
+
+        llvm_cc->ir_builder->CreateStore(value, a);
     }
 
     llvm::Value *VariableAccess::LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc)
@@ -295,20 +296,33 @@ namespace AST
         int module_number = address[0];
         int byte_in_module = address[1];
 
-        std::initializer_list<llvm::Value *> gep_address =
-            {
-                llvm::ConstantInt::get(u32_type, llvm::APInt(32, 0, false)),
-                llvm::ConstantInt::get(u32_type, llvm::APInt(32, iqm_address, false)),
-                llvm::ConstantInt::get(u32_type, llvm::APInt(32, module_number, false)),
-                llvm::ConstantInt::get(u32_type, llvm::APInt(32, byte_in_module, false)),
-            };
+        std::initializer_list<llvm::Value *> gep_address;
+        if (location == Location::Memory)
+        {
+            gep_address =
+                {
+                    llvm::ConstantInt::get(u32_type, llvm::APInt(32, 0, false)),
+                    llvm::ConstantInt::get(u32_type, llvm::APInt(32, iqm_address, false)),
+                    llvm::ConstantInt::get(u32_type, llvm::APInt(32, byte_in_module, false)),
+                };
+        }
+        else
+        {
+            gep_address =
+                {
+                    llvm::ConstantInt::get(u32_type, llvm::APInt(32, 0, false)),
+                    llvm::ConstantInt::get(u32_type, llvm::APInt(32, iqm_address, false)),
+                    llvm::ConstantInt::get(u32_type, llvm::APInt(32, module_number, false)),
+                    llvm::ConstantInt::get(u32_type, llvm::APInt(32, byte_in_module, false)),
+                };
+        }
 
         llvm::Value *accessed_address = llvm_cc->ir_builder->CreateGEP(llvm_cc->global_mem_type, llvm_cc->global_mem_ptr, gep_address, this->ToString());
 
         if (size == 1)
         {
             llvm::LoadInst *tmp_8bit = llvm_cc->ir_builder->CreateLoad(u8_type, accessed_address, this->ToString() + "_value_tmp_8bit");
-            llvm::Constant *tmp_mask = llvm::ConstantInt::get(u8_type, llvm::APInt(8, 1 << address[2], false));
+            llvm::Constant *tmp_mask = llvm::ConstantInt::get(u8_type, llvm::APInt(8, 1 << address.back(), false));
             return llvm_cc->ir_builder->CreateAnd(tmp_8bit, tmp_mask, this->ToString() + "_value");
         }
 
@@ -335,9 +349,97 @@ namespace AST
         return nullptr;
     }
 
-    llvm::Value *GlobalMemoryAccess::LLVMGetReference(LocalScope *ls, LLVMCompilerContext *llvm_cc)
+    void GlobalMemoryAccess::LLVMSetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc, llvm::Value *value)
     {
-        return nullptr;
+        // struct GlobalMem
+        // {
+        //     uint8_t input[max_io_modules][bytes_per_module];  // %Ix.x.x
+        //     uint8_t output[max_io_modules][bytes_per_module]; // %Qx.x.x
+        //     uint8_t memory[max_io_modules][bytes_per_module]; // %Mx.x
+        // };
+        // module '0' means adressing CPU module
+
+        // global = {I, Q, M}
+
+        llvm::IntegerType *u8_type = llvm::IntegerType::getInt8Ty(*llvm_cc->context);
+        llvm::IntegerType *u16_type = llvm::IntegerType::getInt16Ty(*llvm_cc->context);
+        llvm::IntegerType *u32_type = llvm::IntegerType::getInt32Ty(*llvm_cc->context);
+        llvm::IntegerType *u64_type = llvm::IntegerType::getInt64Ty(*llvm_cc->context);
+
+        // FIXME: check if address in bounds
+
+        // adresy w gep {0, IQM, Module, ByteInModule}
+        int iqm_address = (int)location;
+        int module_number = address[0];
+        int byte_in_module = address[1];
+
+        std::vector<llvm::Value *> gep_address;
+
+        if (location == Location::Memory)
+        {
+            gep_address =
+                {
+                    llvm::ConstantInt::get(u32_type, llvm::APInt(32, 0, false)),
+                    llvm::ConstantInt::get(u32_type, llvm::APInt(32, iqm_address, false)),
+                    llvm::ConstantInt::get(u32_type, llvm::APInt(32, byte_in_module, false)),
+                };
+        }
+        else
+        {
+            gep_address =
+                {
+                    llvm::ConstantInt::get(u32_type, llvm::APInt(32, 0, false)),
+                    llvm::ConstantInt::get(u32_type, llvm::APInt(32, iqm_address, false)),
+                    llvm::ConstantInt::get(u32_type, llvm::APInt(32, module_number, false)),
+                    llvm::ConstantInt::get(u32_type, llvm::APInt(32, byte_in_module, false)),
+                };
+        }
+
+        llvm::Value *accessed_address = llvm_cc->ir_builder->CreateGEP(llvm_cc->global_mem_type, llvm_cc->global_mem_ptr, gep_address, this->ToString());
+
+        if (size == 1)
+        {
+
+            // step1 load byte
+            llvm::LoadInst *loaded_byte = llvm_cc->ir_builder->CreateLoad(u8_type, accessed_address, this->ToString() + "_value_tmp_8bit");
+
+            // step2 clear selected bit by masking it
+            uint8_t clean_mask = ~(1 << address.back());
+            llvm::Value *masked_value = llvm_cc->ir_builder->CreateAnd(loaded_byte, clean_mask);
+
+            // step3 set selected bit
+            llvm::Value *zext_val = llvm_cc->ir_builder->CreateZExt(value, u8_type);
+            llvm::Value *set_mask = llvm_cc->ir_builder->CreateShl(zext_val, address.back());
+            llvm::Value *calculated_byte = llvm_cc->ir_builder->CreateOr(masked_value, set_mask);
+
+            // step4 store result
+            llvm_cc->ir_builder->CreateStore(calculated_byte, accessed_address);
+            return;
+        }
+
+        if (size == 8)
+        {
+            llvm_cc->ir_builder->CreateStore(value, accessed_address);
+            return;
+        }
+
+        if (size == 16)
+        {
+            llvm_cc->ir_builder->CreateStore(value, accessed_address);
+            return;
+        }
+
+        if (size == 32)
+        {
+            llvm_cc->ir_builder->CreateStore(value, accessed_address);
+            return;
+        }
+
+        if (size == 64)
+        {
+            llvm_cc->ir_builder->CreateStore(value, accessed_address);
+            return;
+        }
     }
 
     llvm::Value *Exponentiation::LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc)

@@ -43,60 +43,22 @@ namespace AST
     {
         virtual Type GetType(LocalScope *ls) = 0;
         virtual std::string ToString() = 0;
-
-        virtual llvm::Value *LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc) { return nullptr; };
-        virtual llvm::Value *LLVMGetReference(LocalScope *ls, LLVMCompilerContext *llvm_cc) { return nullptr; };
     };
 
-    typedef std::shared_ptr<Expression> ExprPtr;
 
-    //********************************************************************************************
-
-    struct Statement
+    struct Rvalue : public Expression
     {
-        virtual std::string ToString() = 0;
-        virtual void CodeGenLLVM(LocalScope *ls, LLVMCompilerContext *llvm_cc) = 0;
+        virtual llvm::Value *LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc) = 0;
     };
 
-    typedef std::shared_ptr<Statement> StmtPtr;
-    typedef std::vector<StmtPtr> StmtList;
-
-    //********************************************************************************************
-
-    struct Pou
+    struct Lvalue : public Rvalue
     {
-        std::string name;
-        virtual std::string ToString() = 0;
-        virtual void LLVMGenerateDeclaration(LLVMCompilerContext *llvm_cc) = 0;
-        virtual void LLVMGenerateDefinition(LLVMCompilerContext *llvm_cc) = 0;
+        virtual void LLVMSetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc, llvm::Value *) = 0;
     };
 
-    typedef std::shared_ptr<Pou> PouPtr;
-    typedef std::vector<PouPtr> PouList;
+    typedef std::shared_ptr<Rvalue> ExprPtr;
 
-    //********************************************************************************************
-
-    template <class E>
-    StmtPtr MakeStmt(E expr)
-    {
-        return std::make_shared<E>(expr);
-    }
-
-    template <class E>
-    ExprPtr MakeExpr(E expr)
-    {
-        return std::make_shared<E>(expr);
-    }
-
-    template <class E>
-    PouPtr MakePou(E expr)
-    {
-        return std::make_shared<E>(expr);
-    }
-
-    //********************************************************************************************
-
-    class BinaryExpression : public Expression
+    class BinaryExpression : public Rvalue
     {
     protected:
         ExprPtr left;
@@ -142,9 +104,7 @@ namespace AST
         }
     };
 
-    //********************************************************************************************
-
-    class UnaryExpression : public Expression
+    class UnaryExpression : public Rvalue
     {
     protected:
         ExprPtr expr;
@@ -159,6 +119,50 @@ namespace AST
             return expr->GetType(ls);
         }
     };
+
+    //********************************************************************************************
+
+    struct Statement
+    {
+        virtual std::string ToString() = 0;
+        virtual void CodeGenLLVM(LocalScope *ls, LLVMCompilerContext *llvm_cc) = 0;
+    };
+
+    typedef std::shared_ptr<Statement> StmtPtr;
+    typedef std::vector<StmtPtr> StmtList;
+
+    //********************************************************************************************
+
+    struct Pou
+    {
+        std::string name;
+        virtual std::string ToString() = 0;
+        virtual void LLVMGenerateDeclaration(LLVMCompilerContext *llvm_cc) = 0;
+        virtual void LLVMGenerateDefinition(LLVMCompilerContext *llvm_cc) = 0;
+    };
+
+    typedef std::shared_ptr<Pou> PouPtr;
+    typedef std::vector<PouPtr> PouList;
+
+    //********************************************************************************************
+
+    template <class E>
+    StmtPtr MakeStmt(E expr)
+    {
+        return std::make_shared<E>(expr);
+    }
+
+    template <class E>
+    ExprPtr MakeExpr(E expr)
+    {
+        return std::make_shared<E>(expr);
+    }
+
+    template <class E>
+    PouPtr MakePou(E expr)
+    {
+        return std::make_shared<E>(expr);
+    }
 
     //*******************************************************************************************
 
@@ -333,7 +337,7 @@ namespace AST
 
     //********************************************************************************************
 
-    struct Literal : public Expression
+    struct Literal : public Rvalue
     {
         Type type;
 
@@ -365,7 +369,7 @@ namespace AST
         llvm::Value *LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc) override;
     };
 
-    struct VariableAccess : public Expression
+    struct VariableAccess : public Lvalue
     {
         std::string variable_name;
         VariableAccess(std::string l) : variable_name(l) {};
@@ -374,11 +378,11 @@ namespace AST
             return variable_name;
         }
         Type GetType(LocalScope *ls) override;
+        void LLVMSetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc, llvm::Value *) override;
         llvm::Value *LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc) override;
-        llvm::Value *LLVMGetReference(LocalScope *ls, LLVMCompilerContext *llvm_cc) override;
     };
 
-    struct GlobalMemoryAccess : public Expression
+    struct GlobalMemoryAccess : public Lvalue
     {
 
         // I Q M
@@ -458,8 +462,8 @@ namespace AST
         }
 
         Type GetType(LocalScope *ls) override;
+        void LLVMSetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc, llvm::Value *) override;
         llvm::Value *LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc) override;
-        llvm::Value *LLVMGetReference(LocalScope *ls, LLVMCompilerContext *llvm_cc) override;
     };
 
     //********************************************************************************************
@@ -573,7 +577,7 @@ namespace AST
 
         llvm::Type *global_mem_type;
 
-        llvm::Value * global_mem_ptr;
+        llvm::Value *global_mem_ptr;
         std::map<std::string, llvm::Value *> local_variables;
 
         void CreateGlobalMemoryType()
@@ -590,7 +594,7 @@ namespace AST
 
             llvm::Type *input_mem_type = llvm::ArrayType::get(llvm::ArrayType::get(u8_type, bytes_per_module), number_of_modules);
             llvm::Type *output_mem_type = llvm::ArrayType::get(llvm::ArrayType::get(u8_type, bytes_per_module), number_of_modules);
-            llvm::Type *memory_mem_type = llvm::ArrayType::get(llvm::ArrayType::get(u8_type, bytes_per_module), number_of_modules);
+            llvm::Type *memory_mem_type = llvm::ArrayType::get(u8_type, memory_size);
 
             std::initializer_list mems = {input_mem_type, output_mem_type, memory_mem_type};
             global_mem_type = llvm::StructType::get(*context, mems, true);
