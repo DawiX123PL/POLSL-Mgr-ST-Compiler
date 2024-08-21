@@ -1,9 +1,7 @@
 #include "ast1.hpp"
 
-
-
-namespace AST{
-
+namespace AST
+{
 
     std::string FunctionBlock::ToString()
     {
@@ -27,8 +25,10 @@ namespace AST{
         return "{FUNCTION_BLOCK  " + name + "\n" + vars_str + "\n" + StatementListToString(statement_list) + "\n}";
     }
 
-    void FunctionBlock::LLVMGenerateDeclaration(LLVMCompilerContext *llvm_cc)
-    {}
-    void FunctionBlock::LLVMGenerateDefinition(LLVMCompilerContext *llvm_cc)
-    {}
+    void FunctionBlock::LLVMGenerateDeclaration(PouList *gs, LLVMCompilerContext *llvm_cc)
+    {
+    }
+    void FunctionBlock::LLVMGenerateDefinition(PouList *gs, LLVMCompilerContext *llvm_cc)
+    {
+    }
 }

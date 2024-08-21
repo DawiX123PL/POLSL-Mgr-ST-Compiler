@@ -1,5 +1,6 @@
 #include <string>
 #include <iostream>
+#include <filesystem>
 #include "../error/error.hpp"
 #include "lexer/st_lexer.hpp"
 #include "file/file_utils.hpp"
@@ -155,7 +156,7 @@ int main(int argc, char const *argv[])
 
     std::vector<File> files = ReadFileList(err, command_line.GetFiles());
 
-    std::vector<Lexer::TokenList> tokens_from_files = Lexer::TokenizeFiles(err, files);
+    
 
     LLVMInitializeARMTarget();
     LLVMInitializeARMTargetInfo();
@@ -196,20 +197,33 @@ int main(int argc, char const *argv[])
     llvm_cc.module->setTargetTriple(tt);
     llvm_cc.module->setDataLayout(dl);
 
-    for (Lexer::TokenList t : tokens_from_files)
+    // std::vector<Lexer::TokenList> tokens_from_files = Lexer::TokenizeFiles(err, files);
+
+    for(auto file: files)
     {
-        AST::PouList pous = StParser::Parse(err, t);
+        std::filesystem::path path = file.path;
+        bool is_extern = path.extension() == ".st_extern";
+        
+        Lexer::TokenList tokens = Lexer::Tokenize(err, file.content);
+
+        AST::PouList pous = StParser::Parse(err, tokens, is_extern);
         pou_list.insert(pou_list.end(), pous.begin(), pous.end());
     }
 
+    // for (Lexer::TokenList t : tokens_from_files)
+    // {
+    //     AST::PouList pous = StParser::Parse(err, t);
+    //     pou_list.insert(pou_list.end(), pous.begin(), pous.end());
+    // }
+
     for (AST::PouPtr pou : pou_list)
     {
-        pou->LLVMGenerateDeclaration(&llvm_cc);
+        pou->LLVMGenerateDeclaration(&pou_list, &llvm_cc);
     }
 
     for (AST::PouPtr pou : pou_list)
     {
-        pou->LLVMGenerateDefinition(&llvm_cc);
+        pou->LLVMGenerateDefinition(&pou_list, &llvm_cc);
     }
 
     CreateProgramDescription(&llvm_cc);

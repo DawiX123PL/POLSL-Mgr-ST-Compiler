@@ -130,6 +130,7 @@ namespace Lexer
         id_map[builder.Push("\\>\\=")] = TokenType::GREATER_OR_EQUAL;
         id_map[builder.Push("\\<\\>")] = TokenType::INEQUALITY;
         id_map[builder.Push("\\:\\=")] = TokenType::ASSIGN;
+        id_map[builder.Push("\\=\\>")] = TokenType::RIGHT_ASSIGN;
         id_map[builder.Push("\\.\\.")] = TokenType::DOUBLE_DOT;
         id_map[builder.Push("\\=")] = TokenType::EQUALITY;
         id_map[builder.Push("\\^")] = TokenType::DEREFERENCE;

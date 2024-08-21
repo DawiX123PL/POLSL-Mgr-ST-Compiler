@@ -45,7 +45,6 @@ namespace AST
         virtual std::string ToString() = 0;
     };
 
-
     struct Rvalue : public Expression
     {
         virtual llvm::Value *LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc) = 0;
@@ -133,16 +132,22 @@ namespace AST
 
     //********************************************************************************************
 
+    struct Pou;
+
+
     struct Pou
     {
+        typedef std::shared_ptr<Pou> PouPtr;
+        typedef std::vector<PouPtr> PouList;
+
         std::string name;
         virtual std::string ToString() = 0;
-        virtual void LLVMGenerateDeclaration(LLVMCompilerContext *llvm_cc) = 0;
-        virtual void LLVMGenerateDefinition(LLVMCompilerContext *llvm_cc) = 0;
+        virtual void LLVMGenerateDeclaration(PouList *gs, LLVMCompilerContext *llvm_cc) = 0;
+        virtual void LLVMGenerateDefinition(PouList *gs, LLVMCompilerContext *llvm_cc) = 0;
     };
 
-    typedef std::shared_ptr<Pou> PouPtr;
-    typedef std::vector<PouPtr> PouList;
+    typedef Pou::PouPtr  PouPtr;
+    typedef Pou::PouList  PouList;
 
     //********************************************************************************************
 
@@ -203,6 +208,9 @@ namespace AST
 
     struct Function : public Pou
     {
+        bool is_extern;
+        Function(bool _is_extern) : is_extern(_is_extern) {}
+
         StmtList statement_list;
         std::shared_ptr<Variable> result;
 
@@ -213,17 +221,22 @@ namespace AST
 
         std::string ToString();
 
-        void LLVMGenerateDeclaration(LLVMCompilerContext *llvm_cc) override;
-        void LLVMGenerateDefinition(LLVMCompilerContext *llvm_cc) override;
+        void LLVMGenerateDeclaration(AST::PouList *gs, LLVMCompilerContext *llvm_cc) override;
+        void LLVMGenerateDefinition(AST::PouList *gs, LLVMCompilerContext *llvm_cc) override;
 
     private:
         llvm::Function *LLVMBuildDeclaration(LLVMCompilerContext *llvm_cc);
+        llvm::Function *LLVMBuildBody(AST::PouList *gs, LLVMCompilerContext *llvm_cc);
+        
+    public:
         llvm::Function *LLVMGetDeclaration(LLVMCompilerContext *llvm_cc);
-        llvm::Function *LLVMBuildBody(LLVMCompilerContext *llvm_cc);
     };
 
     struct FunctionBlock : public Pou
     {
+        bool is_extern;
+        FunctionBlock(bool _is_extern) : is_extern(_is_extern) {}
+
         StmtList statement_list;
         std::shared_ptr<Variable> result;
 
@@ -234,12 +247,15 @@ namespace AST
 
         std::string ToString();
 
-        void LLVMGenerateDeclaration(LLVMCompilerContext *llvm_cc) override;
-        void LLVMGenerateDefinition(LLVMCompilerContext *llvm_cc) override;
+        void LLVMGenerateDeclaration(AST::PouList *gs, LLVMCompilerContext *llvm_cc) override;
+        void LLVMGenerateDefinition(AST::PouList *gs, LLVMCompilerContext *llvm_cc) override;
     };
 
     struct Program : public Pou
     {
+        bool is_extern;
+        Program(bool _is_extern) : is_extern(_is_extern) {}
+
         StmtList statement_list;
 
         std::vector<Variable> var;
@@ -249,8 +265,8 @@ namespace AST
 
         std::string ToString();
 
-        void LLVMGenerateDeclaration(LLVMCompilerContext *llvm_cc) override;
-        void LLVMGenerateDefinition(LLVMCompilerContext *llvm_cc) override;
+        void LLVMGenerateDeclaration(AST::PouList *gs, LLVMCompilerContext *llvm_cc) override;
+        void LLVMGenerateDefinition(AST::PouList *gs, LLVMCompilerContext *llvm_cc) override;
 
     private:
         llvm::FunctionType *GetFunctionType(LLVMCompilerContext *llvm_cc);
@@ -259,8 +275,8 @@ namespace AST
         llvm::Function *LLVMGetInitDeclaration(LLVMCompilerContext *llvm_cc);
         llvm::Function *LLVMGetBodyDeclaration(LLVMCompilerContext *llvm_cc);
         llvm::StructType *LLVMGetStructType(LLVMCompilerContext *llvm_cc);
-        void LLVMCreateInit(LLVMCompilerContext *llvm_cc);
-        void LLVMCreateBody(LLVMCompilerContext *llvm_cc);
+        void LLVMCreateInit(AST::PouList *gs, LLVMCompilerContext *llvm_cc);
+        void LLVMCreateBody(AST::PouList *gs, LLVMCompilerContext *llvm_cc);
     };
 
     //********************************************************************************************
@@ -336,6 +352,41 @@ namespace AST
     };
 
     //********************************************************************************************
+
+    struct NonformalCall : public Rvalue
+    {
+        std::vector<ExprPtr> input_arguments;
+        std::string callee_name;
+
+        NonformalCall(std::string callee, std::vector<ExprPtr> args) : callee_name(callee), input_arguments(args) {};
+
+        Type GetType(LocalScope *ls) override;
+        std::string ToString() override;
+        llvm::Value *LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc) override;
+    };
+
+    struct FormalCall : public Rvalue
+    {
+        // first := second
+        std::vector<std::pair<ExprPtr, ExprPtr>> input_arguments;
+
+        // first => second
+        std::vector<std::pair<ExprPtr, ExprPtr>> output_arguments;
+
+        std::string callee_name;
+
+        FormalCall(
+            std::string callee) : callee_name(callee), input_arguments(), output_arguments() {};
+
+        FormalCall(
+            std::string callee,
+            std::vector<std::pair<ExprPtr, ExprPtr>> input_args,
+            std::vector<std::pair<ExprPtr, ExprPtr>> output_args) : callee_name(callee), input_arguments(input_args), output_arguments(output_args) {};
+
+        Type GetType(LocalScope *ls) override;
+        std::string ToString() override;
+        llvm::Value *LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc) override;
+    };
 
     struct Literal : public Rvalue
     {
@@ -584,7 +635,7 @@ namespace AST
         {
             // create global memory structure type
             constexpr int number_of_modules = 5;
-            constexpr int bytes_per_module = 5;
+            constexpr int bytes_per_module = 64;
             constexpr int memory_size = 1024;
 
             llvm::IntegerType *u8_type = llvm::IntegerType::getInt8Ty(*context);
@@ -620,6 +671,7 @@ namespace AST
     struct LocalScope
     {
         std::map<std::string, Variable *> local_variables;
+        AST::PouList *global_scope;
     };
 
     //******************************************************************************************

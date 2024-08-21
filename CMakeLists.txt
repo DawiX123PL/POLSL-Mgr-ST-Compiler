@@ -13,6 +13,8 @@ set(FRONTEND_SOURCES
     "src/frontend/ast/function_block.cpp"
     "src/frontend/ast/function.cpp"
     "src/frontend/ast/program.cpp"
+    "src/frontend/ast/nonformal_call.cpp"
+    "src/frontend/ast/formal_call.cpp"
     "src/frontend/ast/type.hpp"
     "src/frontend/lexer/st_lexer.cpp"
     "src/frontend/lexer/st_lexer.hpp"
@@ -169,6 +171,25 @@ endif()
 file(COPY "${PROJECT_SOURCE_DIR}/arm-none-eabi-gcc_libs/lib" DESTINATION "${CMAKE_BINARY_DIR}/build")
 
 #***************************************************************************************************************
+# produce stl files
+
+find_package(Python3 REQUIRED)
+message("Generating STL types conversion functions")
+
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/build/stl/")
+
+execute_process(
+    COMMAND ${Python3_EXECUTABLE} ./stl/conversion_func_producer.py --st_file "${CMAKE_BINARY_DIR}/build/stl/conv.st_extern" --c_file "${CMAKE_BINARY_DIR}/build/stl/conv.c"
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    RESULT_VARIABLE CONVERSION_FUNC_PRODUCER_RESULT
+)
+
+if(CONVERSION_FUNC_PRODUCER_RESULT)
+    message(FATAL_ERROR "Generating STL types failed with result: ${CONVERSION_FUNC_PRODUCER_RESULT}")
+endif()
+
+
+#***************************************************************************************************************
 # change default out dir
 set_target_properties( st_compiler interpreter packager sender
     PROPERTIES
@@ -202,4 +223,15 @@ if ( MSVC )
 endif ( MSVC )
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
+
+#***************************************************************************************************************
+# surpress compiler warnings C4624 - "destructor was implicitly defined as deleted"
+# surpress compiler warning LNK4099 - "PDB '' was not found with ..."
+
+if ( MSVC )
+    target_compile_options(st_compiler PRIVATE /wd4624)
+    target_compile_options(interpreter PRIVATE /wd4624)
+    set_target_properties(st_compiler PROPERTIES LINK_FLAGS "/ignore:4099")
+    set_target_properties(interpreter PROPERTIES LINK_FLAGS "/ignore:4099")
+endif ( MSVC )
 

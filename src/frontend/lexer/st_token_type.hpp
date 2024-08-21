@@ -64,6 +64,7 @@ namespace Lexer
         BOOLEAN_XOR,
         BOOLEAN_OR,
         ASSIGN,
+        RIGHT_ASSIGN,
         COLON,
         SEMICOLON,
         RETURN,

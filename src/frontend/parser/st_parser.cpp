@@ -164,7 +164,7 @@ namespace StParser
         return true;
     }
 
-    AST::PouList Parse(Error::ErrorList_t &err, const Lexer::TokenList tokens)
+    AST::PouList Parse(Error::ErrorList_t &err, const Lexer::TokenList tokens, bool is_extern)
     {
 
         AST::PouList pou_list;
@@ -179,7 +179,7 @@ namespace StParser
             if (tokens[token_index].type == Lexer::TokenType::FUNCTION)
             {
                 end_index = FindToken(tokens, token_index, Lexer::TokenType::END_FUNCTION);
-                pou = ParseFunction(err, Split(tokens, token_index, end_index));
+                pou = ParseFunction(err, Split(tokens, token_index, end_index), is_extern);
                 pou_list.push_back(pou);
             }
 
@@ -187,7 +187,7 @@ namespace StParser
             else if (tokens[token_index].type == Lexer::TokenType::FUNCTION_BLOCK)
             {
                 end_index = FindToken(tokens, token_index, Lexer::TokenType::END_FUNCTION_BLOCK);
-                pou = ParseFunctionBlock(err, Split(tokens, token_index, end_index));
+                pou = ParseFunctionBlock(err, Split(tokens, token_index, end_index), is_extern);
                 pou_list.push_back(pou);
             }
 
@@ -195,7 +195,7 @@ namespace StParser
             else if (tokens[token_index].type == Lexer::TokenType::PROGRAM)
             {
                 end_index = FindToken(tokens, token_index, Lexer::TokenType::END_PROGRAM);
-                pou = ParseProgram(err, Split(tokens, token_index, end_index));
+                pou = ParseProgram(err, Split(tokens, token_index, end_index), is_extern);
                 pou_list.push_back(pou);
             }
 
@@ -212,9 +212,9 @@ namespace StParser
         return pou_list;
     }
 
-    AST::PouPtr ParseFunction(Error::ErrorList_t &err, Lexer::TokenList tokens)
+    AST::PouPtr ParseFunction(Error::ErrorList_t &err, Lexer::TokenList tokens, bool is_extern)
     {
-        AST::Function function;
+        AST::Function function(is_extern);
 
         if (!ExpectToken(err, tokens, 0, Lexer::TokenType::FUNCTION))
             return AST::MakePou(function);
@@ -255,9 +255,9 @@ namespace StParser
         return AST::MakePou(function);
     }
 
-    AST::PouPtr ParseFunctionBlock(Error::ErrorList_t &err, Lexer::TokenList tokens)
+    AST::PouPtr ParseFunctionBlock(Error::ErrorList_t &err, Lexer::TokenList tokens, bool is_extern)
     {
-        AST::FunctionBlock function_block;
+        AST::FunctionBlock function_block(is_extern);
 
         if (!ExpectToken(err, tokens, 0, Lexer::TokenType::FUNCTION_BLOCK))
             return AST::MakePou(function_block);
@@ -301,9 +301,9 @@ namespace StParser
         return AST::MakePou(function_block);
     }
 
-    AST::PouPtr ParseProgram(Error::ErrorList_t &err, Lexer::TokenList tokens)
+    AST::PouPtr ParseProgram(Error::ErrorList_t &err, Lexer::TokenList tokens, bool is_extern)
     {
-        AST::Program program;
+        AST::Program program(is_extern);
 
         if (!ExpectToken(err, tokens, 0, Lexer::TokenType::PROGRAM))
             return AST::MakePou(program);

@@ -38,7 +38,17 @@ namespace StParser::Expression
             return false;
         }
 
-        Lexer::Token GetCurrentToken()
+        // because of this function Recursive Descend Parser is now LL(2)
+        bool IsNextToken(Lexer::TokenType t1, Lexer::TokenType t2)
+        {
+            if (current_index + 1 < tokens.size())
+            {
+                return tokens[current_index].type == t1 && tokens[current_index + 1].type == t2;
+            }
+            return false;
+        }
+
+        [[nodiscard]] Lexer::Token GetCurrentToken()
         {
             // todo
             if (current_index < tokens.size())
@@ -237,7 +247,7 @@ namespace StParser::Expression
             PopToken();
 
             std::smatch mr;
-            if (!std::regex_match(token.str, mr, std::regex( "%([IQM])([XBWDL]?)([0-9]+(?:.[0-9]+)*)")))
+            if (!std::regex_match(token.str, mr, std::regex("%([IQM])([XBWDL]?)([0-9]+(?:.[0-9]+)*)")))
             {
                 PushError(Error::InvalidGlobalAddress(token.pos));
                 return nullptr;
@@ -279,7 +289,7 @@ namespace StParser::Expression
 
             std::string::const_iterator next_str = token.str.begin();
             std::string::const_iterator end_str = token.str.end();
-            while(std::regex_search(next_str, end_str, mr, std::regex("[0-9]+")))
+            while (std::regex_search(next_str, end_str, mr, std::regex("[0-9]+")))
             {
                 next_str = mr.suffix().first;
 
@@ -290,6 +300,124 @@ namespace StParser::Expression
             }
 
             return AST::MakeExpr(mem_access);
+        }
+
+        // function calls
+        // ```st
+        // /*non-formal:*/             LIMIT(B, 0, 5)
+        // /*formal (no arguments):*/  LIMIT()
+        // /*formal:*/                 LIMIT(IN := B, MN := 0, MX := 0)
+        //                             LIMIT(IN => B, MN => 0, MX := 0)
+        // ```
+        void ParseArgumentList(
+            std::vector<AST::ExprPtr> *non_formal_args,
+            std::vector<std::pair<AST::ExprPtr, AST::ExprPtr>> *formal_input_args,
+            std::vector<std::pair<AST::ExprPtr, AST::ExprPtr>> *formal_output_args)
+        {
+            bool is_formal = false;
+            bool is_non_formal = false;
+
+            while (true)
+            {
+                AST::ExprPtr expr = ParseExpression();
+                non_formal_args->push_back(expr);
+
+                if (!is_formal && IsNextToken(Lexer::TokenType::COLON))
+                {
+                    PopToken();
+                    is_non_formal = true;
+                    continue;
+                }
+
+                if (!is_non_formal && IsNextToken(Lexer::TokenType::ASSIGN))
+                {
+                    PopToken();
+                    is_formal = true;
+
+                    AST::ExprPtr right_expr = ParseExpression();
+                    formal_input_args->emplace_back(expr, right_expr);
+                }
+                else if (!is_non_formal && IsNextToken(Lexer::TokenType::RIGHT_ASSIGN))
+                {
+                    PopToken();
+                    is_formal = true;
+
+                    AST::ExprPtr right_expr = ParseExpression();
+                    formal_output_args->emplace_back(expr, right_expr);
+                }
+
+                if (IsNextToken(Lexer::TokenType::COLON))
+                {
+                    PopToken();
+                    continue;
+                }
+
+                break;
+            }
+
+            if (is_formal)
+            {
+                non_formal_args->clear();
+            }
+            if (is_non_formal)
+            {
+                formal_input_args->clear();
+                formal_output_args->clear();
+            }
+        }
+
+        [[nodiscadr]] AST::ExprPtr ParseFunctionCall()
+        {
+            if (!IsNextToken(Lexer::TokenType::IDENTIFIER))
+            {
+                PushError(Error::ExpectedKeyword(GetCurrentToken().pos, Lexer::TokenType::IDENTIFIER));
+                return nullptr;
+            }
+
+            std::string callee_name = GetCurrentToken().str; // name
+            PopToken();
+
+            if (!IsNextToken(Lexer::TokenType::ROUND_BRACKET_OPENING))
+            {
+                PushError(Error::ExpectedKeyword(GetCurrentToken().pos, Lexer::TokenType::ROUND_BRACKET_OPENING));
+                return nullptr;
+            }
+
+            PopToken();
+
+            if (IsNextToken(Lexer::TokenType::ROUND_BRACKET_CLOSING))
+            {
+                PopToken();
+                return AST::MakeExpr(AST::FormalCall(callee_name));
+            }
+
+            std::vector<AST::ExprPtr> non_formal_args;
+            std::vector<std::pair<AST::ExprPtr, AST::ExprPtr>> formal_input_args;
+            std::vector<std::pair<AST::ExprPtr, AST::ExprPtr>> formal_output_args;
+
+            ParseArgumentList(&non_formal_args,
+                              &formal_input_args,
+                              &formal_output_args);
+
+            if (!IsNextToken(Lexer::TokenType::ROUND_BRACKET_CLOSING))
+            {
+                PushError(Error::ExpectedKeyword(GetCurrentToken().pos, Lexer::TokenType::ROUND_BRACKET_CLOSING));
+                return nullptr;
+            }
+
+            PopToken();
+
+            if (non_formal_args.size())
+            {
+                return AST::MakeExpr(AST::NonformalCall(callee_name, non_formal_args));
+            }
+
+            if (formal_input_args.size() || formal_output_args.size())
+            {
+                return AST::MakeExpr(AST::FormalCall(callee_name, formal_input_args, formal_output_args));
+            }
+
+            return AST::MakeExpr(AST::FormalCall(callee_name));
         }
 
         [[nodiscard]] AST::ExprPtr ParsePrimaryExpression()
@@ -311,6 +439,12 @@ namespace StParser::Expression
                 IsNextToken(Lexer::TokenType::FALSE))
             {
                 AST::ExprPtr expr = ParseNumericLiteral();
+                return expr;
+            }
+
+            else if (IsNextToken(Lexer::TokenType::IDENTIFIER, Lexer::TokenType::ROUND_BRACKET_OPENING))
+            {
+                AST::ExprPtr expr = ParseFunctionCall();
                 return expr;
             }
 

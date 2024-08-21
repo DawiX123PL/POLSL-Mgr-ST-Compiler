@@ -163,7 +163,7 @@ namespace AST
     {
         std::vector<llvm::Type *> arguments;
 
-        // first argument is pointer to global memory 
+        // first argument is pointer to global memory
         llvm::Type *global_mem_ptr = llvm::PointerType::get(*llvm_cc->context, 0);
 
         arguments.push_back(global_mem_ptr);
@@ -226,7 +226,7 @@ namespace AST
         return function;
     }
 
-    llvm::Function *Function::LLVMBuildBody(LLVMCompilerContext *llvm_cc)
+    llvm::Function *Function::LLVMBuildBody(AST::PouList* gs, LLVMCompilerContext *llvm_cc)
     {
         llvm::Function *function = LLVMGetDeclaration(llvm_cc);
 
@@ -237,6 +237,8 @@ namespace AST
 
         // allocate and init local variables
         LocalScope ls;
+        ls.global_scope = gs;
+        
         llvm::Function::arg_iterator argument = function->arg_begin();
         llvm_cc->global_mem_ptr = argument;
         llvm_cc->local_variables.clear();
@@ -326,14 +328,20 @@ namespace AST
         return function;
     }
 
-    void Function::LLVMGenerateDeclaration(LLVMCompilerContext *llvm_cc)
+    void Function::LLVMGenerateDeclaration(AST::PouList* gs, LLVMCompilerContext *llvm_cc)
     {
         (void)LLVMGetDeclaration(llvm_cc); // oncy generate declaration if needed
     }
 
-    void Function::LLVMGenerateDefinition(LLVMCompilerContext *llvm_cc)
+    void Function::LLVMGenerateDefinition(AST::PouList* gs, LLVMCompilerContext *llvm_cc)
     {
-        (void)LLVMBuildBody(llvm_cc);
+        if (!is_extern)
+        {
+            (void)LLVMBuildBody(gs, llvm_cc);
+        }
     }
+
+
+    
 
 }

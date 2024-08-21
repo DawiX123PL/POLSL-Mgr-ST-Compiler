@@ -88,11 +88,11 @@ namespace StParser
 
     // Parses whole file content
     AST::PouList
-    Parse(Error::ErrorList_t &err, Lexer::TokenList tokens);
+    Parse(Error::ErrorList_t &err, Lexer::TokenList tokens, bool IsExtern);
 
-    AST::PouPtr ParseFunction(Error::ErrorList_t &err, Lexer::TokenList tokens);
-    AST::PouPtr ParseFunctionBlock(Error::ErrorList_t &err, Lexer::TokenList tokens);
-    AST::PouPtr ParseProgram(Error::ErrorList_t &err, Lexer::TokenList tokens);
+    AST::PouPtr ParseFunction(Error::ErrorList_t &err, Lexer::TokenList tokens, bool IsExtern);
+    AST::PouPtr ParseFunctionBlock(Error::ErrorList_t &err, Lexer::TokenList tokens, bool IsExtern);
+    AST::PouPtr ParseProgram(Error::ErrorList_t &err, Lexer::TokenList tokens, bool IsExtern);
 
     PouBody ParsePouBody(Error::ErrorList_t &err, Lexer::TokenList tokens);
     AST::VarList ParseVarBody(Error::ErrorList_t &err, Lexer::TokenList tokens);

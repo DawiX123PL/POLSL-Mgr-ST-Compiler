@@ -137,7 +137,7 @@ namespace AST
         return prog_struct;
     }
 
-    void Program::LLVMCreateInit(LLVMCompilerContext *llvm_cc)
+    void Program::LLVMCreateInit(AST::PouList* gs, LLVMCompilerContext *llvm_cc)
     {
         llvm::Function *function = LLVMGetInitDeclaration(llvm_cc);
         llvm::StructType *struct_type = LLVMGetStructType(llvm_cc);
@@ -184,7 +184,7 @@ namespace AST
         VerifyFunction(function);
     }
 
-    void Program::LLVMCreateBody(LLVMCompilerContext *llvm_cc)
+    void Program::LLVMCreateBody(AST::PouList* gs, LLVMCompilerContext *llvm_cc)
     {
         llvm::Function *function = LLVMGetBodyDeclaration(llvm_cc);
         llvm::StructType *struct_type = LLVMGetStructType(llvm_cc);
@@ -196,6 +196,8 @@ namespace AST
 
         // allocate and init local variables
         LocalScope ls;
+        ls.global_scope = gs;
+
         llvm::Function::arg_iterator argument = function->arg_begin();
         llvm_cc->global_mem_ptr = argument;
         argument++; // skip GlobalMemoryPointer
@@ -225,16 +227,19 @@ namespace AST
         VerifyFunction(function);
     }
 
-    void Program::LLVMGenerateDeclaration(LLVMCompilerContext *llvm_cc)
+    void Program::LLVMGenerateDeclaration(AST::PouList* gs, LLVMCompilerContext *llvm_cc)
     {
         (void)LLVMCreateInitDeclaration(llvm_cc);
         (void)LLVMCreateBodyDeclaration(llvm_cc);
     };
 
-    void Program::LLVMGenerateDefinition(LLVMCompilerContext *llvm_cc)
+    void Program::LLVMGenerateDefinition(AST::PouList* gs, LLVMCompilerContext *llvm_cc)
     {
-        LLVMCreateInit(llvm_cc);
-        LLVMCreateBody(llvm_cc);
+        if (!is_extern)
+        {
+            LLVMCreateInit(gs, llvm_cc);
+            LLVMCreateBody(gs, llvm_cc);
+        }
     };
 
 }
