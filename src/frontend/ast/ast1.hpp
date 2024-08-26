@@ -219,7 +219,7 @@ namespace AST
         std::vector<Variable> var_output;
         std::vector<Variable> var_in_out;
 
-        std::string ToString();
+        std::string ToString() override;
 
         void LLVMGenerateDeclaration(AST::PouList *gs, LLVMCompilerContext *llvm_cc) override;
         void LLVMGenerateDefinition(AST::PouList *gs, LLVMCompilerContext *llvm_cc) override;
@@ -245,7 +245,7 @@ namespace AST
         std::vector<Variable> var_output;
         std::vector<Variable> var_in_out;
 
-        std::string ToString();
+        std::string ToString() override;
 
         void LLVMGenerateDeclaration(AST::PouList *gs, LLVMCompilerContext *llvm_cc) override;
         void LLVMGenerateDefinition(AST::PouList *gs, LLVMCompilerContext *llvm_cc) override;
@@ -263,7 +263,7 @@ namespace AST
         std::vector<Variable> var_output;
         std::vector<Variable> var_in_out;
 
-        std::string ToString();
+        std::string ToString() override;
 
         void LLVMGenerateDeclaration(AST::PouList *gs, LLVMCompilerContext *llvm_cc) override;
         void LLVMGenerateDefinition(AST::PouList *gs, LLVMCompilerContext *llvm_cc) override;
@@ -661,7 +661,7 @@ namespace AST
             llvm::Type *output_mem_type = llvm::ArrayType::get(llvm::ArrayType::get(u8_type, bytes_per_module), number_of_modules);
             llvm::Type *memory_mem_type = llvm::ArrayType::get(u8_type, memory_size);
 
-            std::initializer_list mems = {input_mem_type, output_mem_type, memory_mem_type};
+            std::initializer_list<llvm::Type *> mems = {input_mem_type, output_mem_type, memory_mem_type};
             global_mem_type = llvm::StructType::get(*context, mems, true);
         }
 

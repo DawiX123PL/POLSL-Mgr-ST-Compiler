@@ -129,7 +129,7 @@ namespace StParser
         return {-1, *searched_tokens.begin()};
     }
 
-    bool ExpectToken(Error::ErrorList_t &err, const Lexer::TokenList &tokens, int index, Lexer::TokenType type)
+    bool ExpectToken(const Lexer::TokenList &tokens, int index, Lexer::TokenType type)
     {
         if (index < 0)
         {
@@ -138,33 +138,33 @@ namespace StParser
 
         if (tokens.size() == 0)
         {
-            Error::PushError(err, Error::MissingKeyword(Position(0, 0), type));                                                 // TODO handle special case
-            Error::PushError(err, Error::InternalCompilerError(__FILE__ ":" + std::to_string(__LINE__) + " Empty token list")); // TODO handle special case
+            ErrorManager::Create(Error::MissingKeyword(Position(0, 0), type));                                                 // TODO handle special case
+            ErrorManager::Create(Error::InternalCompilerError(__FILE__ ":" + std::to_string(__LINE__) + " Empty token list")); // TODO handle special case
             return false;
         }
 
         if (index < 0)
         {
-            Error::PushError(err, Error::MissingKeyword(tokens[0].pos, type));
+            ErrorManager::Create(Error::MissingKeyword(tokens[0].pos, type));
             return false;
         }
 
         if (index > tokens.size())
         {
-            Error::PushError(err, Error::MissingKeyword(tokens[tokens.size()].pos, type));
+            ErrorManager::Create(Error::MissingKeyword(tokens[tokens.size()].pos, type));
             return false;
         }
 
         if (tokens[index].type != type)
         {
-            Error::PushError(err, Error::ExpectedKeyword(tokens[index].pos, type));
+            ErrorManager::Create(Error::ExpectedKeyword(tokens[index].pos, type));
             return false;
         }
 
         return true;
     }
 
-    AST::PouList Parse(Error::ErrorList_t &err, const Lexer::TokenList tokens, bool is_extern)
+    AST::PouList Parse(const Lexer::TokenList tokens, bool is_extern)
     {
 
         AST::PouList pou_list;
@@ -179,7 +179,7 @@ namespace StParser
             if (tokens[token_index].type == Lexer::TokenType::FUNCTION)
             {
                 end_index = FindToken(tokens, token_index, Lexer::TokenType::END_FUNCTION);
-                pou = ParseFunction(err, Split(tokens, token_index, end_index), is_extern);
+                pou = ParseFunction(Split(tokens, token_index, end_index), is_extern);
                 pou_list.push_back(pou);
             }
 
@@ -187,7 +187,7 @@ namespace StParser
             else if (tokens[token_index].type == Lexer::TokenType::FUNCTION_BLOCK)
             {
                 end_index = FindToken(tokens, token_index, Lexer::TokenType::END_FUNCTION_BLOCK);
-                pou = ParseFunctionBlock(err, Split(tokens, token_index, end_index), is_extern);
+                pou = ParseFunctionBlock(Split(tokens, token_index, end_index), is_extern);
                 pou_list.push_back(pou);
             }
 
@@ -195,7 +195,7 @@ namespace StParser
             else if (tokens[token_index].type == Lexer::TokenType::PROGRAM)
             {
                 end_index = FindToken(tokens, token_index, Lexer::TokenType::END_PROGRAM);
-                pou = ParseProgram(err, Split(tokens, token_index, end_index), is_extern);
+                pou = ParseProgram(Split(tokens, token_index, end_index), is_extern);
                 pou_list.push_back(pou);
             }
 
@@ -204,7 +204,7 @@ namespace StParser
             {
                 Position pos = tokens[token_index].pos;
                 Lexer::TokenType type = tokens[token_index].type;
-                Error::PushError(err, Error::UnexpectedTokenError(pos, type));
+                ErrorManager::Create(Error::UnexpectedTokenError(pos, type));
             }
 
             if(end_index == -1)
@@ -216,17 +216,17 @@ namespace StParser
         return pou_list;
     }
 
-    AST::PouPtr ParseFunction(Error::ErrorList_t &err, Lexer::TokenList tokens, bool is_extern)
+    AST::PouPtr ParseFunction(Lexer::TokenList tokens, bool is_extern)
     {
         AST::Function function(is_extern);
 
-        if (!ExpectToken(err, tokens, 0, Lexer::TokenType::FUNCTION))
+        if (!ExpectToken(tokens, 0, Lexer::TokenType::FUNCTION))
             return AST::MakePou(function);
 
-        if (!ExpectToken(err, tokens, 1, Lexer::TokenType::IDENTIFIER))
+        if (!ExpectToken(tokens, 1, Lexer::TokenType::IDENTIFIER))
             return AST::MakePou(function);
 
-        if (!ExpectToken(err, tokens, -1, Lexer::TokenType::END_FUNCTION))
+        if (!ExpectToken(tokens, -1, Lexer::TokenType::END_FUNCTION))
             return AST::MakePou(function);
 
         std::string pou_name = tokens[1].str;
@@ -239,10 +239,10 @@ namespace StParser
         // check for return value;
         if (IsTokenTypeAt(tokens, 2, Lexer::TokenType::COLON))
         {
-            if (!ExpectToken(err, tokens, 2, Lexer::TokenType::COLON))
+            if (!ExpectToken(tokens, 2, Lexer::TokenType::COLON))
                 return AST::MakePou(function);
 
-            if (!ExpectToken(err, tokens, 3, Lexer::TokenType::IDENTIFIER))
+            if (!ExpectToken(tokens, 3, Lexer::TokenType::IDENTIFIER))
                 return AST::MakePou(function);
 
             return_type = tokens[3].str;
@@ -250,7 +250,7 @@ namespace StParser
             function.result = std::make_shared<AST::Variable>(pou_name, return_type);
         }
 
-        PouBody body = ParsePouBody(err, Split(tokens, body_start_index, -2));
+        PouBody body = ParsePouBody(Split(tokens, body_start_index, -2));
         function.statement_list = body.stmt_list;
         function.var = body.vars.var;
         function.var_input = body.vars.input;
@@ -259,17 +259,17 @@ namespace StParser
         return AST::MakePou(function);
     }
 
-    AST::PouPtr ParseFunctionBlock(Error::ErrorList_t &err, Lexer::TokenList tokens, bool is_extern)
+    AST::PouPtr ParseFunctionBlock(Lexer::TokenList tokens, bool is_extern)
     {
         AST::FunctionBlock function_block(is_extern);
 
-        if (!ExpectToken(err, tokens, 0, Lexer::TokenType::FUNCTION_BLOCK))
+        if (!ExpectToken(tokens, 0, Lexer::TokenType::FUNCTION_BLOCK))
             return AST::MakePou(function_block);
 
-        if (!ExpectToken(err, tokens, 1, Lexer::TokenType::IDENTIFIER))
+        if (!ExpectToken(tokens, 1, Lexer::TokenType::IDENTIFIER))
             return AST::MakePou(function_block);
 
-        if (!ExpectToken(err, tokens, -1, Lexer::TokenType::END_FUNCTION_BLOCK))
+        if (!ExpectToken(tokens, -1, Lexer::TokenType::END_FUNCTION_BLOCK))
             return AST::MakePou(function_block);
 
         std::string pou_name = tokens[1].str;
@@ -282,10 +282,10 @@ namespace StParser
         // check for return value;
         if (IsTokenTypeAt(tokens, 2, Lexer::TokenType::COLON))
         {
-            if (!ExpectToken(err, tokens, 2, Lexer::TokenType::COLON))
+            if (!ExpectToken(tokens, 2, Lexer::TokenType::COLON))
                 return AST::MakePou(function_block);
 
-            if (!ExpectToken(err, tokens, 3, Lexer::TokenType::IDENTIFIER))
+            if (!ExpectToken(tokens, 3, Lexer::TokenType::IDENTIFIER))
                 return AST::MakePou(function_block);
 
             return_type = tokens[3].str;
@@ -296,7 +296,7 @@ namespace StParser
             function_block.result = std::make_shared<AST::Variable>(pou_name, return_type);
         }
 
-        PouBody body = ParsePouBody(err, Split(tokens, body_start_index, -2));
+        PouBody body = ParsePouBody(Split(tokens, body_start_index, -2));
         function_block.statement_list = body.stmt_list;
         function_block.var = body.vars.var;
         function_block.var_input = body.vars.input;
@@ -305,23 +305,23 @@ namespace StParser
         return AST::MakePou(function_block);
     }
 
-    AST::PouPtr ParseProgram(Error::ErrorList_t &err, Lexer::TokenList tokens, bool is_extern)
+    AST::PouPtr ParseProgram(Lexer::TokenList tokens, bool is_extern)
     {
         AST::Program program(is_extern);
 
-        if (!ExpectToken(err, tokens, 0, Lexer::TokenType::PROGRAM))
+        if (!ExpectToken(tokens, 0, Lexer::TokenType::PROGRAM))
             return AST::MakePou(program);
 
-        if (!ExpectToken(err, tokens, 1, Lexer::TokenType::IDENTIFIER))
+        if (!ExpectToken(tokens, 1, Lexer::TokenType::IDENTIFIER))
             return AST::MakePou(program);
 
-        if (!ExpectToken(err, tokens, -1, Lexer::TokenType::END_PROGRAM))
+        if (!ExpectToken(tokens, -1, Lexer::TokenType::END_PROGRAM))
             return AST::MakePou(program);
 
         std::string pou_name = tokens[1].str;
         program.name = pou_name;
 
-        PouBody body = ParsePouBody(err, Split(tokens, 2, -2));
+        PouBody body = ParsePouBody(Split(tokens, 2, -2));
         program.statement_list = body.stmt_list;
         program.var = body.vars.var;
         program.var_input = body.vars.input;
@@ -330,21 +330,21 @@ namespace StParser
         return AST::MakePou(program);
     }
 
-    PouBody ParsePouBody(Error::ErrorList_t &err, Lexer::TokenList tokens)
+    PouBody ParsePouBody(Lexer::TokenList tokens)
     {
         PouBody body;
         // find and parse VAR blocks
         int last_var_index = 0;
-        body.vars = ParseAllVars(err, tokens, &last_var_index);
+        body.vars = ParseAllVars(tokens, &last_var_index);
 
         // parse statement list
         Lexer::TokenList statemens_tokens = Split(tokens, last_var_index, -1);
-        body.stmt_list = ParseStatementList(err, statemens_tokens);
+        body.stmt_list = ParseStatementList(statemens_tokens);
 
         return body;
     }
 
-    AST::StmtList ParseStatementList(Error::ErrorList_t &err, Lexer::TokenList tokens)
+    AST::StmtList ParseStatementList(Lexer::TokenList tokens)
     {
         AST::StmtList statement_list;
 
@@ -361,7 +361,7 @@ namespace StParser
                     tokens, token_index, Lexer::TokenType::SEMICOLON,
                     {Lexer::TokenType::IF, Lexer::TokenType::END_IF});
 
-                stmt = ParseIfStatement(err, Split(tokens, token_index, end_index));
+                stmt = ParseIfStatement(Split(tokens, token_index, end_index));
             }
 
             // WHILE statement
@@ -371,7 +371,7 @@ namespace StParser
                     tokens, token_index, Lexer::TokenType::SEMICOLON,
                     {Lexer::TokenType::WHILE, Lexer::TokenType::END_WHILE});
 
-                stmt = ParseWhileStatement(err, Split(tokens, token_index, end_index));
+                stmt = ParseWhileStatement(Split(tokens, token_index, end_index));
             }
 
             // FOR statement
@@ -381,7 +381,7 @@ namespace StParser
                     tokens, token_index, Lexer::TokenType::SEMICOLON,
                     {Lexer::TokenType::FOR, Lexer::TokenType::END_FOR});
 
-                stmt = ParseWhileStatement(err, Split(tokens, token_index, end_index));
+                stmt = ParseWhileStatement(Split(tokens, token_index, end_index));
             }
 
             // REPEAT statement
@@ -391,12 +391,12 @@ namespace StParser
                     tokens, token_index, Lexer::TokenType::SEMICOLON,
                     {Lexer::TokenType::REPEAT, Lexer::TokenType::END_REPEAT});
 
-                stmt = ParseWhileStatement(err, Split(tokens, token_index, end_index));
+                stmt = ParseWhileStatement(Split(tokens, token_index, end_index));
             }
             else
             {
                 end_index = FindToken(tokens, token_index, Lexer::TokenType::SEMICOLON);
-                stmt = ParseStatement(err, Split(tokens, token_index, end_index));
+                stmt = ParseStatement(Split(tokens, token_index, end_index));
 
                 // TODO parse assignment expression or function call
             }
@@ -415,9 +415,9 @@ namespace StParser
     // 1) empty statement `;`
     // 2) assignment statement `A := B;`
     // 2) unassigned expression (for example: function call) `A;`
-    AST::StmtPtr ParseStatement(Error::ErrorList_t &err, Lexer::TokenList tokens)
+    AST::StmtPtr ParseStatement(Lexer::TokenList tokens)
     {
-        if (!ExpectToken(err, tokens, -1, Lexer::TokenType::SEMICOLON))
+        if (!ExpectToken(tokens, -1, Lexer::TokenType::SEMICOLON))
             return AST::MakeStmt(AST::EmptyStatement());
 
         if (tokens.size() == 1)
@@ -430,7 +430,7 @@ namespace StParser
         if (assign_operator_index == -1)
         {
             Lexer::TokenList expr_tokens = Split(tokens, 0, -2);
-            AST::ExprPtr expr = Expression::Parse(err, expr_tokens);
+            AST::ExprPtr expr = Expression::Parse(expr_tokens);
             return AST::MakeStmt(AST::NonAsssingingStatement(expr));
         }
         else
@@ -438,8 +438,8 @@ namespace StParser
             Lexer::TokenList left_expr_tokens = Split(tokens, 0, assign_operator_index - 1);
             Lexer::TokenList right_expr_tokens = Split(tokens, assign_operator_index + 1, -2);
 
-            AST::ExprPtr left_expr = Expression::Parse(err, left_expr_tokens);
-            AST::ExprPtr right_expr = Expression::Parse(err, right_expr_tokens);
+            AST::ExprPtr left_expr = Expression::Parse(left_expr_tokens);
+            AST::ExprPtr right_expr = Expression::Parse(right_expr_tokens);
 
             return AST::MakeStmt(AST::AssignmentStatement(left_expr, right_expr));
         }
@@ -448,13 +448,13 @@ namespace StParser
     // FOR ... TO ... BY ... DO
     // ...
     // END_FOR;
-    AST::StmtPtr ParseForStatement(Error::ErrorList_t &err, Lexer::TokenList tokens)
+    AST::StmtPtr ParseForStatement(Lexer::TokenList tokens)
     {
-        if (!ExpectToken(err, tokens, 0, Lexer::TokenType::FOR))
+        if (!ExpectToken(tokens, 0, Lexer::TokenType::FOR))
             return AST::MakeStmt(AST::EmptyStatement());
-        if (!ExpectToken(err, tokens, -2, Lexer::TokenType::END_FOR))
+        if (!ExpectToken(tokens, -2, Lexer::TokenType::END_FOR))
             return AST::MakeStmt(AST::EmptyStatement());
-        if (!ExpectToken(err, tokens, -1, Lexer::TokenType::SEMICOLON))
+        if (!ExpectToken(tokens, -1, Lexer::TokenType::SEMICOLON))
             return AST::MakeStmt(AST::EmptyStatement());
 
         int to_keyword_pos = FindToken(tokens, 1, Lexer::TokenType::TO);
@@ -463,19 +463,19 @@ namespace StParser
 
         if (to_keyword_pos == -1)
         {
-            Error::PushError(err, Error::MissingKeywordAfter(tokens[0].pos, tokens[0].type, Lexer::TokenType::TO));
+            ErrorManager::Create(Error::MissingKeywordAfter(tokens[0].pos, tokens[0].type, Lexer::TokenType::TO));
             return AST::MakeStmt(AST::EmptyStatement());
         }
 
         if (by_keyword_pos == -1)
         {
-            Error::PushError(err, Error::MissingKeywordAfter(tokens[0].pos, tokens[0].type, Lexer::TokenType::BY));
+            ErrorManager::Create(Error::MissingKeywordAfter(tokens[0].pos, tokens[0].type, Lexer::TokenType::BY));
             return AST::MakeStmt(AST::EmptyStatement());
         }
 
         if (do_keyword_pos == -1)
         {
-            Error::PushError(err, Error::MissingKeywordAfter(tokens[0].pos, tokens[0].type, Lexer::TokenType::DO));
+            ErrorManager::Create(Error::MissingKeywordAfter(tokens[0].pos, tokens[0].type, Lexer::TokenType::DO));
             return AST::MakeStmt(AST::EmptyStatement());
         }
 
@@ -486,7 +486,7 @@ namespace StParser
 
         // todo parse condition
         // todo parse statement_list
-        AST::StmtList statement_list = ParseStatementList(err, statement_list_tokens);
+        AST::StmtList statement_list = ParseStatementList(statement_list_tokens);
 
         // TODO
         return AST::MakeStmt(AST::EmptyStatement());
@@ -495,27 +495,27 @@ namespace StParser
     // WHILE ... DO
     // ...
     // END_WHILE;
-    AST::StmtPtr ParseWhileStatement(Error::ErrorList_t &err, Lexer::TokenList tokens)
+    AST::StmtPtr ParseWhileStatement(Lexer::TokenList tokens)
     {
-        if (!ExpectToken(err, tokens, 0, Lexer::TokenType::WHILE))
+        if (!ExpectToken(tokens, 0, Lexer::TokenType::WHILE))
             return AST::MakeStmt(AST::EmptyStatement());
-        if (!ExpectToken(err, tokens, -2, Lexer::TokenType::END_WHILE))
+        if (!ExpectToken(tokens, -2, Lexer::TokenType::END_WHILE))
             return AST::MakeStmt(AST::EmptyStatement());
-        if (!ExpectToken(err, tokens, -1, Lexer::TokenType::SEMICOLON))
+        if (!ExpectToken(tokens, -1, Lexer::TokenType::SEMICOLON))
             return AST::MakeStmt(AST::EmptyStatement());
 
         int do_keyword_pos = FindToken(tokens, Lexer::TokenType::DO);
         if (do_keyword_pos == -1)
         {
-            Error::PushError(err, Error::MissingKeywordAfter(tokens[0].pos, tokens[0].type, Lexer::TokenType::DO));
+            ErrorManager::Create(Error::MissingKeywordAfter(tokens[0].pos, tokens[0].type, Lexer::TokenType::DO));
             return AST::MakeStmt(AST::EmptyStatement());
         }
 
         Lexer::TokenList condition_tokens = Split(tokens, 1, do_keyword_pos - 1);
         Lexer::TokenList statement_list_tokens = Split(tokens, do_keyword_pos + 1, -3);
 
-        AST::ExprPtr condition = Expression::Parse(err, condition_tokens);
-        AST::StmtList statemen_list = ParseStatementList(err, statement_list_tokens);
+        AST::ExprPtr condition = Expression::Parse(condition_tokens);
+        AST::StmtList statemen_list = ParseStatementList(statement_list_tokens);
 
         return AST::MakeStmt(AST::WhileStatement(condition, statemen_list));
     }
@@ -524,13 +524,13 @@ namespace StParser
     // ...
     // UNTIL ...
     // END_WHILE;
-    AST::StmtPtr ParseRepeatStatement(Error::ErrorList_t &err, Lexer::TokenList tokens)
+    AST::StmtPtr ParseRepeatStatement(Lexer::TokenList tokens)
     {
-        if (!ExpectToken(err, tokens, 0, Lexer::TokenType::REPEAT))
+        if (!ExpectToken(tokens, 0, Lexer::TokenType::REPEAT))
             return AST::MakeStmt(AST::EmptyStatement());
-        if (!ExpectToken(err, tokens, -2, Lexer::TokenType::END_REPEAT))
+        if (!ExpectToken(tokens, -2, Lexer::TokenType::END_REPEAT))
             return AST::MakeStmt(AST::EmptyStatement());
-        if (!ExpectToken(err, tokens, -1, Lexer::TokenType::SEMICOLON))
+        if (!ExpectToken(tokens, -1, Lexer::TokenType::SEMICOLON))
             return AST::MakeStmt(AST::EmptyStatement());
 
         int until_keyword_pos = FindTokenAndIgnoreNeasted(
@@ -539,7 +539,7 @@ namespace StParser
 
         if (until_keyword_pos == -1)
         {
-            Error::PushError(err, Error::MissingKeywordAfter(tokens[0].pos, tokens[0].type, Lexer::TokenType::UNTIL));
+            ErrorManager::Create(Error::MissingKeywordAfter(tokens[0].pos, tokens[0].type, Lexer::TokenType::UNTIL));
             return AST::MakeStmt(AST::EmptyStatement());
         }
 
@@ -548,7 +548,7 @@ namespace StParser
 
         // todo parse condition
         // todo parse statement_list
-        AST::StmtList stmt_list = ParseStatementList(err, statement_list_tokens);
+        AST::StmtList stmt_list = ParseStatementList(statement_list_tokens);
         return AST::MakeStmt(AST::EmptyStatement());
     }
 
@@ -557,15 +557,15 @@ namespace StParser
     // IF .. THEN
     //     ...
     // END_IF;
-    AST::StmtPtr ParseIfStatement(Error::ErrorList_t &err, Lexer::TokenList tokens)
+    AST::StmtPtr ParseIfStatement(Lexer::TokenList tokens)
     {
-        if (!ExpectToken(err, tokens, 0, Lexer::TokenType::IF))
+        if (!ExpectToken(tokens, 0, Lexer::TokenType::IF))
             return AST::MakeStmt(AST::EmptyStatement());
 
-        if (!ExpectToken(err, tokens, -2, Lexer::TokenType::END_IF))
+        if (!ExpectToken(tokens, -2, Lexer::TokenType::END_IF))
             return AST::MakeStmt(AST::EmptyStatement());
 
-        if (!ExpectToken(err, tokens, -1, Lexer::TokenType::SEMICOLON))
+        if (!ExpectToken(tokens, -1, Lexer::TokenType::SEMICOLON))
             return AST::MakeStmt(AST::EmptyStatement());
 
         int then_keyword_pos = FindTokenAndIgnoreNeasted(
@@ -574,7 +574,7 @@ namespace StParser
 
         if (then_keyword_pos == -1)
         {
-            Error::PushError(err, Error::MissingKeywordAfter(tokens[0].pos, tokens[0].type, Lexer::TokenType::THEN));
+            ErrorManager::Create(Error::MissingKeywordAfter(tokens[0].pos, tokens[0].type, Lexer::TokenType::THEN));
             return AST::MakeStmt(AST::EmptyStatement());
         }
 
@@ -583,12 +583,12 @@ namespace StParser
 
         // todo parse condition
         // todo parse statement_list
-        AST::ExprPtr condition = Expression::Parse(err, condition_tokens);
-        AST::StmtList statement_list = ParseStatementList(err, statement_list_tokens);
+        AST::ExprPtr condition = Expression::Parse(condition_tokens);
+        AST::StmtList statement_list = ParseStatementList(statement_list_tokens);
         return AST::MakeStmt(AST::IfStatement(condition, statement_list));
     }
 
-    AllVars ParseAllVars(Error::ErrorList_t &err, Lexer::TokenList tokens, int *last_position)
+    AllVars ParseAllVars(Lexer::TokenList tokens, int *last_position)
     {
         AllVars vars;
 
@@ -602,28 +602,28 @@ namespace StParser
             if (tokens[token_index].type == Lexer::TokenType::VAR)
             {
                 end_index = FindToken(tokens, token_index, Lexer::TokenType::END_VAR);
-                vars.var = ParseVar(err, Split(tokens, token_index, end_index));
+                vars.var = ParseVar(Split(tokens, token_index, end_index));
             }
 
             // find pair VAR_INPUT .. END_VAR
             else if (tokens[token_index].type == Lexer::TokenType::VAR_INPUT)
             {
                 end_index = FindToken(tokens, token_index, Lexer::TokenType::END_VAR);
-                vars.input = ParseVarInput(err, Split(tokens, token_index, end_index));
+                vars.input = ParseVarInput(Split(tokens, token_index, end_index));
             }
 
             // find pair VAR_IN_OUT .. END_VAR
             else if (tokens[token_index].type == Lexer::TokenType::VAR_IN_OUT)
             {
                 end_index = FindToken(tokens, token_index, Lexer::TokenType::END_VAR);
-                vars.input_output = ParseVarInOut(err, Split(tokens, token_index, end_index));
+                vars.input_output = ParseVarInOut(Split(tokens, token_index, end_index));
             }
 
             // find pair VAR_OUTPUT .. END_VAR
             else if (tokens[token_index].type == Lexer::TokenType::VAR_OUTPUT)
             {
                 end_index = FindToken(tokens, token_index, Lexer::TokenType::END_VAR);
-                vars.output = ParseVarOutput(err, Split(tokens, token_index, end_index));
+                vars.output = ParseVarOutput(Split(tokens, token_index, end_index));
             }
 
             // if previous keywords not found, then  return result and last position
@@ -639,51 +639,51 @@ namespace StParser
         return vars;
     }
 
-    AST::VarList ParseVar(Error::ErrorList_t &err, Lexer::TokenList tokens)
+    AST::VarList ParseVar(Lexer::TokenList tokens)
     {
-        if (!ExpectToken(err, tokens, 0, Lexer::TokenType::VAR))
+        if (!ExpectToken(tokens, 0, Lexer::TokenType::VAR))
             return {};
 
-        if (!ExpectToken(err, tokens, -1, Lexer::TokenType::END_VAR))
+        if (!ExpectToken(tokens, -1, Lexer::TokenType::END_VAR))
             return {};
 
-        return ParseVarBody(err, Split(tokens, 1, -2));
+        return ParseVarBody(Split(tokens, 1, -2));
     }
 
-    AST::VarList ParseVarInput(Error::ErrorList_t &err, Lexer::TokenList tokens)
+    AST::VarList ParseVarInput(Lexer::TokenList tokens)
     {
-        if (!ExpectToken(err, tokens, 0, Lexer::TokenType::VAR_INPUT))
+        if (!ExpectToken(tokens, 0, Lexer::TokenType::VAR_INPUT))
             return {};
 
-        if (!ExpectToken(err, tokens, -1, Lexer::TokenType::END_VAR))
+        if (!ExpectToken(tokens, -1, Lexer::TokenType::END_VAR))
             return {};
 
-        return ParseVarBody(err, Split(tokens, 1, -2));
+        return ParseVarBody(Split(tokens, 1, -2));
     }
 
-    AST::VarList ParseVarInOut(Error::ErrorList_t &err, Lexer::TokenList tokens)
+    AST::VarList ParseVarInOut(Lexer::TokenList tokens)
     {
-        if (!ExpectToken(err, tokens, 0, Lexer::TokenType::VAR_IN_OUT))
+        if (!ExpectToken(tokens, 0, Lexer::TokenType::VAR_IN_OUT))
             return {};
 
-        if (!ExpectToken(err, tokens, -1, Lexer::TokenType::END_VAR))
+        if (!ExpectToken(tokens, -1, Lexer::TokenType::END_VAR))
             return {};
 
-        return ParseVarBody(err, Split(tokens, 1, -2));
+        return ParseVarBody(Split(tokens, 1, -2));
     }
 
-    AST::VarList ParseVarOutput(Error::ErrorList_t &err, Lexer::TokenList tokens)
+    AST::VarList ParseVarOutput(Lexer::TokenList tokens)
     {
-        if (!ExpectToken(err, tokens, 0, Lexer::TokenType::VAR_OUTPUT))
+        if (!ExpectToken(tokens, 0, Lexer::TokenType::VAR_OUTPUT))
             return {};
 
-        if (!ExpectToken(err, tokens, -1, Lexer::TokenType::END_VAR))
+        if (!ExpectToken(tokens, -1, Lexer::TokenType::END_VAR))
             return {};
 
-        return ParseVarBody(err, Split(tokens, 1, -2));
+        return ParseVarBody(Split(tokens, 1, -2));
     }
 
-    AST::VarList ParseVarBody(Error::ErrorList_t &err, Lexer::TokenList tokens)
+    AST::VarList ParseVarBody(Lexer::TokenList tokens)
     {
         AST::VarList variables;
 
@@ -692,7 +692,7 @@ namespace StParser
         {
             // find semicolon separating variables
             int end_index = FindToken(tokens, index, Lexer::TokenType::SEMICOLON);
-            AST::Variable variable = ParseVariableDeclaration(err, Split(tokens, index, end_index));
+            AST::Variable variable = ParseVariableDeclaration(Split(tokens, index, end_index));
             variables.push_back(variable);
 
             index = end_index + 1;
@@ -701,18 +701,18 @@ namespace StParser
         return variables;
     }
 
-    AST::Variable ParseVariableDeclaration(Error::ErrorList_t &err, Lexer::TokenList tokens)
+    AST::Variable ParseVariableDeclaration(Lexer::TokenList tokens)
     {
-        if (!ExpectToken(err, tokens, 0, Lexer::TokenType::IDENTIFIER))
+        if (!ExpectToken(tokens, 0, Lexer::TokenType::IDENTIFIER))
             return AST::Variable();
 
-        if (!ExpectToken(err, tokens, 1, Lexer::TokenType::COLON))
+        if (!ExpectToken(tokens, 1, Lexer::TokenType::COLON))
             return AST::Variable();
 
-        if (!ExpectToken(err, tokens, 2, Lexer::TokenType::IDENTIFIER))
+        if (!ExpectToken(tokens, 2, Lexer::TokenType::IDENTIFIER))
             return AST::Variable();
 
-        if (!ExpectToken(err, tokens, -1, Lexer::TokenType::SEMICOLON))
+        if (!ExpectToken(tokens, -1, Lexer::TokenType::SEMICOLON))
             return AST::Variable();
 
         std::string variable_name = tokens[0].str;
@@ -723,11 +723,11 @@ namespace StParser
             return AST::Variable(variable_name, data_type);
         }
 
-        if (!ExpectToken(err, tokens, 3, Lexer::TokenType::ASSIGN))
+        if (!ExpectToken(tokens, 3, Lexer::TokenType::ASSIGN))
             return AST::Variable();
 
         Lexer::TokenList init_expression_tokens = Split(tokens, 4, -2);
-        AST::ExprPtr initial_value = Expression::Parse(err, init_expression_tokens);
+        AST::ExprPtr initial_value = Expression::Parse(init_expression_tokens);
 
         return AST::Variable(variable_name, data_type, initial_value);
     }

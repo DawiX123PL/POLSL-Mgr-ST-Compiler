@@ -28,7 +28,9 @@ set(FRONTEND_SOURCES
     "src/console/color.cpp"
     "src/console/color.hpp"
     "src/console/command_line_parser.hpp"
-    "src/error/error.cpp"
+    "src/error/error_manager.cpp"
+    "src/error/error_manager.hpp"
+    "src/error/error_template.hpp"
     "src/error/error.hpp"
     "src/file/file_utils.cpp" 
     "src/file/file_utils.hpp"
@@ -84,21 +86,21 @@ llvm_map_components_to_libnames(
     st_compiler_llvm_libraries  
 
 # required libraries
-    support 
+    # support 
     core  
-    irreader
+    # irreader
         
-    armasmparser
+    # armasmparser
     armcodegen
     armdesc
-    armdisassembler
+    # armdisassembler
     arminfo
-    armutils
+    # armutils
 
-    x86asmparser
+    # x86asmparser
     x86codegen
     x86desc
-    x86disassembler
+    # x86disassembler
     x86info
 )
 

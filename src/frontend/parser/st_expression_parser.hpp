@@ -2,7 +2,7 @@
 
 #include <utility>
 #include <assert.h>
-#include "error/error.hpp"
+#include "error/error_manager.hpp"
 #include "frontend/lexer/st_lexer.hpp"
 #include "frontend/ast/ast1.hpp"
 #include <regex>
@@ -12,17 +12,8 @@ namespace StParser::Expression
 
     class RecursiveDescendParser
     {
-        Error::ErrorList_t *err = nullptr;
         Lexer::TokenList tokens;
         int current_index = 0;
-
-        // helper functions
-        template <class T>
-        void PushError(T error)
-        {
-            assert(err != nullptr);
-            Error::PushError(*err, error);
-        }
 
         void PopToken()
         {
@@ -62,10 +53,6 @@ namespace StParser::Expression
         }
 
     public:
-        void AssignError(Error::ErrorList_t *_err)
-        {
-            err = _err;
-        }
 
         //  void Parse Expression()
         // {
@@ -189,7 +176,7 @@ namespace StParser::Expression
                 big_int num;
                 if (!ParseInteger(token.str, 10, &num))
                 {
-                    PushError(Error::InvalidNumericLiteral(token.pos));
+                    ErrorManager::Create(Error::InvalidNumericLiteral(token.pos));
                 }
                 AST::Type type = AST::Type::INT;
                 return AST::MakeExpr(AST::Literal(num, type));
@@ -202,7 +189,7 @@ namespace StParser::Expression
                 AST::Type type = AST::Type::REAL;
                 if (!ParseFloat(token.str, &num))
                 {
-                    PushError(Error::InvalidNumericLiteral(token.pos));
+                    ErrorManager::Create(Error::InvalidNumericLiteral(token.pos));
                 }
                 return AST::MakeExpr(AST::Literal(num, type));
             }
@@ -217,7 +204,7 @@ namespace StParser::Expression
                     double num;
                     if (!ParseFloat(mr[2].str(), &num))
                     {
-                        PushError(Error::InvalidNumericLiteral(token.pos));
+                        ErrorManager::Create(Error::InvalidNumericLiteral(token.pos));
                     }
                     return AST::MakeExpr(AST::Literal(num, type));
                 }
@@ -228,7 +215,7 @@ namespace StParser::Expression
                     big_int num;
                     if (!ParseInteger(mr[2].str(), 10, &num))
                     {
-                        PushError(Error::InvalidNumericLiteral(token.pos));
+                        ErrorManager::Create(Error::InvalidNumericLiteral(token.pos));
                     }
                     return AST::MakeExpr(AST::Literal(num, type));
                 }
@@ -237,7 +224,7 @@ namespace StParser::Expression
             // TODO:
             // typed and based numeric literal
 
-            PushError(Error::InvalidNumericLiteral(token.pos));
+            ErrorManager::Create(Error::InvalidNumericLiteral(token.pos));
             return nullptr;
         }
 
@@ -249,7 +236,7 @@ namespace StParser::Expression
             std::smatch mr;
             if (!std::regex_match(token.str, mr, std::regex("%([IQM])([XBWDL]?)([0-9]+(?:.[0-9]+)*)")))
             {
-                PushError(Error::InvalidGlobalAddress(token.pos));
+                ErrorManager::Create(Error::InvalidGlobalAddress(token.pos));
                 return nullptr;
             }
 
@@ -263,7 +250,7 @@ namespace StParser::Expression
             auto loc = location_names.find(mr[1].str());
             if (loc == location_names.end())
             {
-                PushError(Error::InvalidGlobalAddress(token.pos));
+                ErrorManager::Create(Error::InvalidGlobalAddress(token.pos));
                 return nullptr;
             }
 
@@ -281,7 +268,7 @@ namespace StParser::Expression
             auto size = size_names.find(mr[2].str());
             if (size == size_names.end())
             {
-                PushError(Error::InvalidGlobalAddress(token.pos));
+                ErrorManager::Create(Error::InvalidGlobalAddress(token.pos));
                 return nullptr;
             }
 
@@ -370,7 +357,7 @@ namespace StParser::Expression
         {
             if (!IsNextToken(Lexer::TokenType::IDENTIFIER))
             {
-                PushError(Error::ExpectedKeyword(GetCurrentToken().pos, Lexer::TokenType::IDENTIFIER));
+                ErrorManager::Create(Error::ExpectedKeyword(GetCurrentToken().pos, Lexer::TokenType::IDENTIFIER));
                 return nullptr;
             }
 
@@ -379,7 +366,7 @@ namespace StParser::Expression
 
             if (!IsNextToken(Lexer::TokenType::ROUND_BRACKET_OPENING))
             {
-                PushError(Error::ExpectedKeyword(GetCurrentToken().pos, Lexer::TokenType::ROUND_BRACKET_OPENING));
+                ErrorManager::Create(Error::ExpectedKeyword(GetCurrentToken().pos, Lexer::TokenType::ROUND_BRACKET_OPENING));
                 return nullptr;
             }
 
@@ -401,7 +388,7 @@ namespace StParser::Expression
 
             if (!IsNextToken(Lexer::TokenType::ROUND_BRACKET_CLOSING))
             {
-                PushError(Error::ExpectedKeyword(GetCurrentToken().pos, Lexer::TokenType::ROUND_BRACKET_CLOSING));
+                ErrorManager::Create(Error::ExpectedKeyword(GetCurrentToken().pos, Lexer::TokenType::ROUND_BRACKET_CLOSING));
                 return nullptr;
             }
 
@@ -477,13 +464,13 @@ namespace StParser::Expression
                 else
                 {
                     // Error Expected closing bracket ')'
-                    PushError(Error::ExpectedKeyword(GetCurrentToken().pos, Lexer::TokenType::ROUND_BRACKET_CLOSING));
+                    ErrorManager::Create(Error::ExpectedKeyword(GetCurrentToken().pos, Lexer::TokenType::ROUND_BRACKET_CLOSING));
                 }
                 return expr;
             }
 
             // Error: Expected Literal or opening Bracket '('
-            PushError(Error::ExpectedKeyword(GetCurrentToken().pos, Lexer::TokenType::NUMERIC_LITERAL));
+            ErrorManager::Create(Error::ExpectedKeyword(GetCurrentToken().pos, Lexer::TokenType::NUMERIC_LITERAL));
             return nullptr;
         }
 
@@ -678,12 +665,12 @@ namespace StParser::Expression
             // check if all tokens were consumed
             if (current_index < tokens.size())
             {
-                PushError(Error::UnexpectedTokenError(GetCurrentToken().pos, GetCurrentToken().type));
+                ErrorManager::Create(Error::UnexpectedTokenError(GetCurrentToken().pos, GetCurrentToken().type));
             }
 
             return expr;
         }
     };
 
-    AST::ExprPtr Parse(Error::ErrorList_t &err, Lexer::TokenList tokens);
+    AST::ExprPtr Parse(Lexer::TokenList tokens);
 }

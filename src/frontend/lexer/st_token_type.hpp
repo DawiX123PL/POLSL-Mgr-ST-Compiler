@@ -1,6 +1,7 @@
 #pragma once
 
 #include <utility>
+#include <string>
 
 namespace Lexer
 {
@@ -337,6 +338,6 @@ namespace Lexer
 
     };
 
-    const char *TokenTypeToString(TokenType type);
+    std::string TokenTypeToString(TokenType type);
 
 }

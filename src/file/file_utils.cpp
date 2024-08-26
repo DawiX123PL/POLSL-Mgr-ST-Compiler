@@ -9,12 +9,12 @@ static bool WriteFileContent(std::string file_name, const std::string &file_cont
 static void PrintFileContent(std::string file_content);
 
 // returns true if operation was successful
-bool WriteFile(Error::ErrorList_t err, File *file)
+bool WriteFile(File *file)
 {
 
     if (!WriteFileContent(file->path, file->content))
     {
-        Error::PushError(err, Error::CannotReadFile(file->path));
+        ErrorManager::Create(Error::CannotReadFile(file->path));
         return false;
     }
 
@@ -22,28 +22,28 @@ bool WriteFile(Error::ErrorList_t err, File *file)
 }
 
 // returns true if operation was successful
-bool ReadFile(Error::ErrorList_t err, std::string path, File *file)
+bool ReadFile(std::string path, File *file)
 {
     file->path = path;
     file->content = "";
 
     if (!ReadFileContent(path, &file->content))
     {
-        Error::PushError(err, Error::CannotReadFile(path));
+        ErrorManager::Create(Error::CannotReadFile(path));
         return false;
     }
 
     return true;
 }
 
-std::vector<File> ReadFileList(Error::ErrorList_t err, std::vector<std::string> path_list)
+std::vector<File> ReadFileList(std::vector<std::string> path_list)
 {
     std::vector<File> files;
 
     for (int i = 0; i < path_list.size(); i++)
     {
         File f;
-        if (ReadFile(err, path_list[i], &f))
+        if (ReadFile(path_list[i], &f))
         {
             files.push_back(f);
         }

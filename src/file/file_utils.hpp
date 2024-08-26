@@ -2,7 +2,7 @@
 
 #include <string>
 #include <vector>
-#include "error/error.hpp"
+#include "error/error_manager.hpp"
 
 struct File
 {
@@ -12,10 +12,10 @@ struct File
 
 
 // returns true if operation was successful
-bool ReadFile(Error::ErrorList_t err, std::string path, File* file);
+bool ReadFile(std::string path, File* file);
 
 // returns vector of successfuly read files
-std::vector<File> ReadFileList(Error::ErrorList_t err, std::vector<std::string> path_list);
+std::vector<File> ReadFileList(std::vector<std::string> path_list);
 
 // returns true if operation was successful
-bool WriteFile(Error::ErrorList_t err, File* file);
+bool WriteFile(File* file);

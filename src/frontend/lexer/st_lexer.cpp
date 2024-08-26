@@ -1,5 +1,5 @@
 #include "st_lexer.hpp"
-#include "error/error.hpp"
+#include "error/error_manager.hpp"
 
 #include <assert.h>
 #include <string>
@@ -45,7 +45,7 @@ namespace Lexer
         }
     };
 
-    std::vector<TokenList> TokenizeFiles(Error::ErrorList_t &err, const std::vector<File> files)
+    std::vector<TokenList> TokenizeFiles(const std::vector<File> files)
     {
 
         std::vector<TokenList> token_list;
@@ -53,7 +53,7 @@ namespace Lexer
         for (int i = 0; i < files.size(); i++)
         {
             token_list.push_back({});
-            token_list.back() = Tokenize(err, files[i].content);
+            token_list.back() = Tokenize(files[i].content);
         }
 
         return token_list;
@@ -88,7 +88,7 @@ namespace Lexer
         return false;
     }
 
-    TokenList Tokenize(Error::ErrorList_t &err, const std::string &code)
+    TokenList Tokenize(const std::string &code)
     {
 
         std::string identifier_or_keyword = "[a-zA-Z_][a-zA-Z0-9_]*";
@@ -168,7 +168,7 @@ namespace Lexer
             Position pos{line_counter, current_index - current_column_begin};
             if (mr.empty())
             {
-                Error::PushError(err, Error::UnexpectedSymbolError(pos, code[current_index]));
+                ErrorManager::Create(Error::UnexpectedSymbolError(pos, code[current_index]));
                 continue;
             }
 
@@ -229,7 +229,7 @@ namespace Lexer
             }
             else
             {
-                Error::PushError(err, Error::UnexpectedSymbolError(pos, code[current_index]));
+                ErrorManager::Create(Error::UnexpectedSymbolError(pos, code[current_index]));
                 continue;
             }
         }

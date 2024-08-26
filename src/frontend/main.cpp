@@ -135,8 +135,6 @@ void CreateProgramDescription(AST::LLVMCompilerContext *llvm_cc)
 
 int main(int argc, char const *argv[])
 {
-    Error::ErrorList_t err;
-
     CommandLineParser<CommandLineFlags> command_line = ParseCommandLine(argc, argv);
 
     bool IsVerbose = false;
@@ -149,12 +147,12 @@ int main(int argc, char const *argv[])
     std::vector<std::string> input_file_paths = command_line.GetFiles();
     if (input_file_paths.size() == 0)
     {
-        Error::PushError(err, Error::NoInputFiles());
-        Error::PrintErrors(err);
+        ErrorManager::Create(Error::NoInputFiles());
+        // Error::PrintErrors();
         return -1;
     }
 
-    std::vector<File> files = ReadFileList(err, command_line.GetFiles());
+    std::vector<File> files = ReadFileList(command_line.GetFiles());
 
     
 
@@ -165,8 +163,8 @@ int main(int argc, char const *argv[])
     // LLVMInitializeARMAsmParser();
 
     llvm::InitializeNativeTarget();
-    llvm::InitializeNativeTargetAsmParser();
-    llvm::InitializeNativeTargetAsmPrinter();
+    // llvm::InitializeNativeTargetAsmParser();
+    // llvm::InitializeNativeTargetAsmPrinter();
 
     std::string tt = llvm::sys::getDefaultTargetTriple(); // this will be default if not -target is provided
     if (command_line.IsFlagUsed(CommandLineFlags::TARGET_TRIPLE))
@@ -204,9 +202,9 @@ int main(int argc, char const *argv[])
         std::filesystem::path path = file.path;
         bool is_extern = path.extension() == ".st_extern";
         
-        Lexer::TokenList tokens = Lexer::Tokenize(err, file.content);
+        Lexer::TokenList tokens = Lexer::Tokenize(file.content);
 
-        AST::PouList pous = StParser::Parse(err, tokens, is_extern);
+        AST::PouList pous = StParser::Parse(tokens, is_extern);
         pou_list.insert(pou_list.end(), pous.begin(), pous.end());
     }
 
@@ -228,8 +226,8 @@ int main(int argc, char const *argv[])
 
     CreateProgramDescription(&llvm_cc);
 
-    Error::PrintErrors(err);
-    if (err.size())
+    // Error::PrintErrors();
+    if (ErrorManager::Count())
     {
         return -1;
     }
@@ -256,7 +254,7 @@ int main(int argc, char const *argv[])
         std::cout << "Emiting IR for target: " << TargetMachine->getTargetTriple().str() << "\n";
     }
 
-    WriteFile(err, &output_ir_file);
+    WriteFile(&output_ir_file);
 
     // for (llvm::Function &func : llvm_cc.module->getFunctionList())
     // {

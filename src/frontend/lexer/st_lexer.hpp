@@ -46,7 +46,7 @@ namespace Lexer
     typedef std::vector<Token> TokenList;
 
     
-    std::vector<TokenList> TokenizeFiles(Error::ErrorList_t &err, const std::vector<File> files);
-    TokenList Tokenize(Error::ErrorList_t &err, const std::string &code);
+    std::vector<TokenList> TokenizeFiles(const std::vector<File> files);
+    TokenList Tokenize(const std::string &code);
 
 };

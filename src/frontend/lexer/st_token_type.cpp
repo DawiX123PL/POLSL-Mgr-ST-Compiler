@@ -4,7 +4,7 @@
 namespace Lexer
 {
 
-    const char *TokenTypeToString(TokenType type)
+    std::string TokenTypeToString(TokenType type)
     {
         constexpr int count = sizeof(tokentype_names_list) / sizeof(tokentype_names_list[0]);
         for (int i = 0; i < count; i++)
@@ -13,11 +13,11 @@ namespace Lexer
 
             if (t == type)
             {
-                return tokentype_names_list[i].first;
+                return std::string(tokentype_names_list[i].first);
             }
         }
 
-        return "UNNOWN";
+        return std::string("UNNOWN");
     }
 
 }

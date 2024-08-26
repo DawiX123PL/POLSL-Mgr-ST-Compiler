@@ -2,7 +2,7 @@
 
 #include <utility>
 #include "st_expression_parser.hpp"
-#include "error/error.hpp"
+#include "error/error_manager.hpp"
 #include "frontend/lexer/st_lexer.hpp"
 #include "frontend/ast/ast1.hpp"
 
@@ -45,7 +45,7 @@ namespace StParser
 
     // checks if token exists in specified index
     // if not, return false and pushes error
-    bool ExpectToken(Error::ErrorList_t &err, const Lexer::TokenList &tokens, int index, Lexer::TokenType type);
+    bool ExpectToken(const Lexer::TokenList &tokens, int index, Lexer::TokenType type);
 
     //
     // Finds token and ignores everything between `nested_ignored.first` and `nested_ignored.second`
@@ -88,26 +88,26 @@ namespace StParser
 
     // Parses whole file content
     AST::PouList
-    Parse(Error::ErrorList_t &err, Lexer::TokenList tokens, bool IsExtern);
+    Parse(Lexer::TokenList tokens, bool IsExtern);
 
-    AST::PouPtr ParseFunction(Error::ErrorList_t &err, Lexer::TokenList tokens, bool IsExtern);
-    AST::PouPtr ParseFunctionBlock(Error::ErrorList_t &err, Lexer::TokenList tokens, bool IsExtern);
-    AST::PouPtr ParseProgram(Error::ErrorList_t &err, Lexer::TokenList tokens, bool IsExtern);
+    AST::PouPtr ParseFunction(Lexer::TokenList tokens, bool IsExtern);
+    AST::PouPtr ParseFunctionBlock(Lexer::TokenList tokens, bool IsExtern);
+    AST::PouPtr ParseProgram(Lexer::TokenList tokens, bool IsExtern);
 
-    PouBody ParsePouBody(Error::ErrorList_t &err, Lexer::TokenList tokens);
-    AST::VarList ParseVarBody(Error::ErrorList_t &err, Lexer::TokenList tokens);
+    PouBody ParsePouBody(Lexer::TokenList tokens);
+    AST::VarList ParseVarBody(Lexer::TokenList tokens);
 
-    AllVars ParseAllVars(Error::ErrorList_t &err, Lexer::TokenList tokens, int *last_position);
-    AST::VarList ParseVar(Error::ErrorList_t &err, Lexer::TokenList tokens);
-    AST::VarList ParseVarInput(Error::ErrorList_t &err, Lexer::TokenList tokens);
-    AST::VarList ParseVarInOut(Error::ErrorList_t &err, Lexer::TokenList tokens);
-    AST::VarList ParseVarOutput(Error::ErrorList_t &err, Lexer::TokenList tokens);
-    AST::Variable ParseVariableDeclaration(Error::ErrorList_t &err, Lexer::TokenList tokens);
+    AllVars ParseAllVars(Lexer::TokenList tokens, int *last_position);
+    AST::VarList ParseVar(Lexer::TokenList tokens);
+    AST::VarList ParseVarInput(Lexer::TokenList tokens);
+    AST::VarList ParseVarInOut(Lexer::TokenList tokens);
+    AST::VarList ParseVarOutput(Lexer::TokenList tokens);
+    AST::Variable ParseVariableDeclaration(Lexer::TokenList tokens);
 
-    AST::StmtList ParseStatementList(Error::ErrorList_t &err, Lexer::TokenList tokens);
-    AST::StmtPtr ParseStatement(Error::ErrorList_t &err, Lexer::TokenList tokens);
-    AST::StmtPtr ParseForStatement(Error::ErrorList_t &err, Lexer::TokenList tokens);
-    AST::StmtPtr ParseWhileStatement(Error::ErrorList_t &err, Lexer::TokenList tokens);
-    AST::StmtPtr ParseRepeatStatement(Error::ErrorList_t &err, Lexer::TokenList tokens);
-    AST::StmtPtr ParseIfStatement(Error::ErrorList_t &err, Lexer::TokenList tokens);
+    AST::StmtList ParseStatementList(Lexer::TokenList tokens);
+    AST::StmtPtr ParseStatement(Lexer::TokenList tokens);
+    AST::StmtPtr ParseForStatement(Lexer::TokenList tokens);
+    AST::StmtPtr ParseWhileStatement(Lexer::TokenList tokens);
+    AST::StmtPtr ParseRepeatStatement(Lexer::TokenList tokens);
+    AST::StmtPtr ParseIfStatement(Lexer::TokenList tokens);
 };

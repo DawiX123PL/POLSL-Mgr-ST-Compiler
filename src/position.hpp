@@ -12,7 +12,7 @@ struct Position
 
     std::string ToStringShort() const
     {
-        return "{" + std::to_string(line) + ":" + std::to_string(col) + "}";
+        return "{ln:" + std::to_string(line) + ", col:" + std::to_string(col) + "}";
     }
     std::string ToString() const
     {
