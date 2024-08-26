@@ -14,7 +14,7 @@ VAR_OUTPUT
     x: INT;
 END_VAR
 VAR
-    c: INT := INT#100;
+    c: INT := INT#-100;
 END_VAR 
 // x:=-aaa+b*c1;
 // test_func := BOOL#1;
