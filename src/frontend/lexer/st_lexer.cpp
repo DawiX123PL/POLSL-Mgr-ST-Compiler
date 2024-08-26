@@ -99,12 +99,12 @@ namespace Lexer
         std::string typed_based_numeric_literal = identifier_or_keyword + "#" + integer_literal + "#[a-zA-Z0-9_]*";
         std::string string_literal1 = R"REGEX(\"(?:\$\"|[^"])*\")REGEX";
         std::string string_literal2 = R"REGEX(\'(?:\$\'|[^'])*\')REGEX";
-        std::string memory_address = R"REGEX(%[a-z-A-Z]?[a-z-A-Z][0-9]+(?:\.[0-9]+)*)REGEX";
+        std::string memory_address = R"REGEX(%[a-zA-Z]?[a-zA-Z][0-9]+(?:\.[0-9]+)*)REGEX";
 
         RegexBuilder builder;
         std::map<int, TokenType> id_map;
 
-        const int id_newline = builder.Push("\\n");
+        const int id_newline = builder.Push("[\\r\\n]");
         const int id_white_space = builder.Push("\\s");
         const int id_memory_address = builder.Push(memory_address);
         const int id_typed_based_numeric_literal = builder.Push(typed_based_numeric_literal);
@@ -114,7 +114,7 @@ namespace Lexer
         const int id_numeric_literal = builder.Push(numeric_literal);
         const int id_string_literal_1 = builder.Push(string_literal1);
         const int id_string_literal_2 = builder.Push(string_literal2);
-        const int id_single_line_comment = builder.Push("\\/\\/.*");
+        const int id_single_line_comment = builder.Push("\\/\\/[^\n\r]*");
         const int id_multiline_comment_1 = builder.Push(R"REGEX(\(\*[^*]*(?:\*(?!\*)[^)]*)*\*\))REGEX"); // todo fix problem with missing comments tags
         const int id_multiline_comment_2 = builder.Push(R"REGEX(\\\*[^*]*(?:\*(?!\*)[^*]*)*\*\\)REGEX"); // todo fix problem with missing comments tags
         id_map[builder.Push("\\(\\*")] = TokenType::COMMENT_MULTILINE_BRACKET_OPEN;

@@ -312,6 +312,20 @@ namespace AST
         void CodeGenLLVM(LocalScope *ls, LLVMCompilerContext *llvm_cc) override;
     };
 
+    struct NonAsssingingStatement : public Statement
+    {
+        ExprPtr expr;
+        NonAsssingingStatement(ExprPtr _expr) : expr(_expr) {}
+
+        std::string ToString() override
+        {
+            std::string expr_str = expr ? expr->ToString() : "____";
+            return "{" + expr_str + "}";
+        }
+
+        void CodeGenLLVM(LocalScope *ls, LLVMCompilerContext *llvm_cc) override;
+    };
+
     struct IfStatement : public Statement
     {
         ExprPtr condition;

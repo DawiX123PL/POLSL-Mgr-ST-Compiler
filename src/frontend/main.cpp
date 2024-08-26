@@ -199,7 +199,7 @@ int main(int argc, char const *argv[])
 
     // std::vector<Lexer::TokenList> tokens_from_files = Lexer::TokenizeFiles(err, files);
 
-    for(auto file: files)
+    for(auto& file: files)
     {
         std::filesystem::path path = file.path;
         bool is_extern = path.extension() == ".st_extern";

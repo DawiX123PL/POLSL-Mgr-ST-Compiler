@@ -207,6 +207,10 @@ namespace StParser
                 Error::PushError(err, Error::UnexpectedTokenError(pos, type));
             }
 
+            if(end_index == -1)
+            {
+                break;
+            }
             token_index = end_index + 1;
         }
         return pou_list;
@@ -426,7 +430,8 @@ namespace StParser
         if (assign_operator_index == -1)
         {
             Lexer::TokenList expr_tokens = Split(tokens, 0, -2);
-            return nullptr;
+            AST::ExprPtr expr = Expression::Parse(err, expr_tokens);
+            return AST::MakeStmt(AST::NonAsssingingStatement(expr));
         }
         else
         {

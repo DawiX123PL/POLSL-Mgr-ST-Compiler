@@ -107,6 +107,13 @@ namespace AST
         l_value->LLVMSetValue(ls, llvm_cc, ir_expr);
     }
 
+    void NonAsssingingStatement::CodeGenLLVM(LocalScope *ls, LLVMCompilerContext *llvm_cc)
+    {
+        // just generate llvm ir code
+        // do not assign result
+        (void)expr->LLVMGetValue(ls, llvm_cc);
+    }
+
     void IfStatement::CodeGenLLVM(LocalScope *ls, LLVMCompilerContext *llvm_cc)
     {
         // TODO: IfStatement
@@ -321,9 +328,13 @@ namespace AST
 
         if (size == 1)
         {
-            llvm::LoadInst *tmp_8bit = llvm_cc->ir_builder->CreateLoad(u8_type, accessed_address, this->ToString() + "_value_tmp_8bit");
+            llvm::LoadInst *tmp_byte = llvm_cc->ir_builder->CreateLoad(u8_type, accessed_address, this->ToString() + "_value_tmp_8bit");
             llvm::Constant *tmp_mask = llvm::ConstantInt::get(u8_type, llvm::APInt(8, 1 << address.back(), false));
-            return llvm_cc->ir_builder->CreateAnd(tmp_8bit, tmp_mask, this->ToString() + "_value");
+            llvm::Value *tmp_8bit_val = llvm_cc->ir_builder->CreateAnd(tmp_byte, tmp_mask, this->ToString() + "_value_8bit");
+
+            // check if non-zero
+            llvm::Constant * zero = llvm::ConstantInt::get(u8_type, 0, false);
+            return llvm_cc->ir_builder->CreateICmpNE(tmp_8bit_val, zero, this->ToString() + "_value");
         }
 
         if (size == 8)
