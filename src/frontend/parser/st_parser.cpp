@@ -138,7 +138,7 @@ namespace StParser
 
         if (tokens.size() == 0)
         {
-            ErrorManager::Create(Error::MissingKeyword(Position(0, 0), type));                                                 // TODO handle special case
+            ErrorManager::Create(Error::MissingKeyword(Position(nullptr, 0, 0), type));                                                 // TODO handle special case
             ErrorManager::Create(Error::InternalCompilerError(__FILE__ ":" + std::to_string(__LINE__) + " Empty token list")); // TODO handle special case
             return false;
         }

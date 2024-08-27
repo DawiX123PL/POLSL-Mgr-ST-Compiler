@@ -5,7 +5,7 @@
 #include <iostream>
 
 static bool ReadFileContent(std::string file_name, std::string *result);
-static bool WriteFileContent(std::string file_name, const std::string &file_content);
+static bool WriteFileContent(std::filesystem::path file_name, const std::string &file_content);
 static void PrintFileContent(std::string file_content);
 
 // returns true if operation was successful
@@ -85,7 +85,7 @@ static bool ReadFileContent(std::string file_name, std::string *result)
     return true;
 }
 
-static bool WriteFileContent(std::string file_name, const std::string &file_content)
+static bool WriteFileContent(std::filesystem::path file_name, const std::string &file_content)
 {
     try
     {

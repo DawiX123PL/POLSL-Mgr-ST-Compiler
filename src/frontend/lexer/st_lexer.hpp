@@ -18,8 +18,8 @@ namespace Lexer
         std::string str;
         Position pos;
 
-        Token() : type(TokenType::UNNOWN), str(), pos(0, 0) {}
-        Token(TokenType _type, std::string _str) : type(_type), str(_str), pos(0, 0) {}
+        Token() : type(TokenType::UNNOWN), str(), pos(nullptr, 0, 0) {}
+        Token(TokenType _type, std::string _str) : type(_type), str(_str), pos(nullptr, 0, 0) {}
         Token(TokenType _type, std::string _str, Position _pos) : type(_type), str(_str), pos(_pos) {}
 
         std::string ToString()
@@ -47,6 +47,6 @@ namespace Lexer
 
     
     std::vector<TokenList> TokenizeFiles(const std::vector<File> files);
-    TokenList Tokenize(const std::string &code);
+    TokenList Tokenize(std::filesystem::path source_file, const std::string &code);
 
 };

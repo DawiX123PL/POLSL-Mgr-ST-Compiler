@@ -11,6 +11,7 @@
 #include <map>
 #include <regex>
 #include <chrono>
+#include <filesystem>
 
 namespace Lexer
 {
@@ -53,7 +54,7 @@ namespace Lexer
         for (int i = 0; i < files.size(); i++)
         {
             token_list.push_back({});
-            token_list.back() = Tokenize(files[i].content);
+            token_list.back() = Tokenize(files[i].path, files[i].content);
         }
 
         return token_list;
@@ -88,8 +89,9 @@ namespace Lexer
         return false;
     }
 
-    TokenList Tokenize(const std::string &code)
+    TokenList Tokenize(std::filesystem::path source_file_name, const std::string &code)
     {
+        std::shared_ptr<std::filesystem::path> source_file_name_shared = std::make_shared<std::filesystem::path>(source_file_name);
 
         std::string identifier_or_keyword = "[a-zA-Z_][a-zA-Z0-9_]*";
         std::string integer_literal = "[0-9][0-9_]*";
@@ -165,7 +167,7 @@ namespace Lexer
             int current_index = next_str - code.begin();
             next_str = mr.suffix().first;
 
-            Position pos{line_counter, current_index - current_column_begin};
+            Position pos{source_file_name_shared, line_counter, current_index - current_column_begin};
             if (mr.empty())
             {
                 ErrorManager::Create(Error::UnexpectedSymbolError(pos, code[current_index]));

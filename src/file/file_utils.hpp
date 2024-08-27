@@ -3,10 +3,11 @@
 #include <string>
 #include <vector>
 #include "error/error_manager.hpp"
+#include <filesystem>
 
 struct File
 {
-    std::string path;
+    std::filesystem::path path;
     std::string content;
 };
 

@@ -14,7 +14,7 @@ namespace Error
     public:
         std::string ToString() const
         {
-            return Console::FgBrightRed("[Error]") + MessageToString();
+            return Console::FgDarkRed("[Error]") + MessageToString();
         }
     };
 
@@ -27,7 +27,7 @@ namespace Error
     public:
         std::string ToString() const
         {
-            return Console::FgBrightRed("[Error]") + pos.ToString() + " " + MessageToString();
+            return Console::FgDarkRed("[Error]") + pos.ToString() + " " + MessageToString();
         }
     };
 

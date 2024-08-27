@@ -1,5 +1,6 @@
 #pragma once
 
+#include <filesystem>
 #include "error_template.hpp"
 #include "position.hpp"
 
@@ -314,15 +315,15 @@ namespace Error
 
     class CannotReadFile : public BasicError
     {
-        std::string path;
+        std::filesystem::path path;
 
     public:
-        CannotReadFile(std::string _path)
+        CannotReadFile(std::filesystem::path _path)
             : path(_path) {};
 
         std::string MessageToString() const override
         {
-            return "Cannot Read file content : " + path;
+            return "Cannot Read file content : " + path.string();
         };
     };
 

@@ -48,7 +48,7 @@ namespace StParser::Expression
             }
             else
             {
-                return Lexer::Token(Lexer::TokenType::UNNOWN, "", Position(0, 0)); // to prevent segfault
+                return Lexer::Token(Lexer::TokenType::UNNOWN, "", Position(nullptr, 0, 0)); // to prevent segfault
             }
         }
 

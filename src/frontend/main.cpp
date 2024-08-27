@@ -202,7 +202,7 @@ int main(int argc, char const *argv[])
         std::filesystem::path path = file.path;
         bool is_extern = path.extension() == ".st_extern";
         
-        Lexer::TokenList tokens = Lexer::Tokenize(file.content);
+        Lexer::TokenList tokens = Lexer::Tokenize(file.path, file.content);
 
         AST::PouList pous = StParser::Parse(tokens, is_extern);
         pou_list.insert(pou_list.end(), pous.begin(), pous.end());
