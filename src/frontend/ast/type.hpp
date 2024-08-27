@@ -113,7 +113,7 @@ namespace AST
             return UNNOWN;
         }
 
-        std::string ToString()
+        std::string ToString() const
         {
             if(type == STRUCT) return "STRUCT"; 
             if(type == ARRAY) return "ARRAY"; 

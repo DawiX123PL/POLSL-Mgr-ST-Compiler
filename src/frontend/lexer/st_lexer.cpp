@@ -106,7 +106,7 @@ namespace Lexer
         RegexBuilder builder;
         std::map<int, TokenType> id_map;
 
-        const int id_newline = builder.Push("[\\r\\n]");
+        const int id_newline = builder.Push("\\r\\n|\\r|\\n");
         const int id_white_space = builder.Push("\\s");
         const int id_memory_address = builder.Push(memory_address);
         const int id_typed_based_numeric_literal = builder.Push(typed_based_numeric_literal);
@@ -179,7 +179,7 @@ namespace Lexer
             if (id == id_newline)
             {
                 line_counter++;
-                current_column_begin = code.begin() - next_str;
+                current_column_begin = next_str - code.begin();
                 continue;
             }
 

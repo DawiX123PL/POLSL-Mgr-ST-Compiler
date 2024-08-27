@@ -33,6 +33,7 @@ public:
     {
         error_list.push_back(std::make_shared<T>(error));
         std::cout << error.ToString() + "\n";
+        std::cout.flush();
     }
 
     static size_t Count()

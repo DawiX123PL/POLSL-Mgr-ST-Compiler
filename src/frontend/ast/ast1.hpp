@@ -27,6 +27,9 @@
 
 #include "type.hpp"
 #include "ast1_makros.hpp"
+#include "error/error_manager.hpp"
+#include "position.hpp"
+#include "exception.hpp"
 
 typedef boost::multiprecision::cpp_int big_int;
 typedef boost::multiprecision::cpp_bin_float_oct big_float;
@@ -41,17 +44,22 @@ namespace AST
     // interface
     struct Expression
     {
+        Position position;
+        Expression(Position _position) : position(_position) {}
+
         virtual Type GetType(LocalScope *ls) = 0;
         virtual std::string ToString() = 0;
     };
 
     struct Rvalue : public Expression
     {
+        Rvalue(Position _position) : Expression(_position) {}
         virtual llvm::Value *LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc) = 0;
     };
 
     struct Lvalue : public Rvalue
     {
+        Lvalue(Position _position) : Rvalue(_position) {}
         virtual void LLVMSetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc, llvm::Value *) = 0;
     };
 
@@ -62,23 +70,28 @@ namespace AST
     protected:
         ExprPtr left;
         ExprPtr right;
-        BinaryExpression(ExprPtr l, ExprPtr r) : left(l), right(r) {}
+        BinaryExpression(Position _position, ExprPtr l, ExprPtr r) : Rvalue(_position), left(l), right(r) {}
     };
 
     class BinaryArithmeticExpression : public BinaryExpression
     {
     protected:
-        BinaryArithmeticExpression(ExprPtr l, ExprPtr r) : BinaryExpression(l, r) {}
+        BinaryArithmeticExpression(Position pos, ExprPtr l, ExprPtr r) : BinaryExpression(pos, l, r) {}
         Type GetType(LocalScope *ls) override
         {
             if (!left || !right)
+            {
                 return Type::UNNOWN;
+            }
 
             Type type_left = left->GetType(ls);
             Type type_right = right->GetType(ls);
 
             if (type_left != type_right)
-                return Type::UNNOWN;
+            {
+                ErrorManager::Create(Error::InvalidBinaryOperation(position, "", type_left, type_right));
+                throw Exception{};
+            }
 
             return type_left;
         }
@@ -87,17 +100,22 @@ namespace AST
     class BinaryComparisonExpression : public BinaryExpression
     {
     protected:
-        BinaryComparisonExpression(ExprPtr l, ExprPtr r) : BinaryExpression(l, r) {}
+        BinaryComparisonExpression(Position pos, ExprPtr l, ExprPtr r) : BinaryExpression(pos, l, r) {}
         Type GetType(LocalScope *ls) override
         {
             if (!left || !right)
+            {
                 return Type::UNNOWN;
+            }
 
             Type type_left = left->GetType(ls);
             Type type_right = right->GetType(ls);
 
             if (type_left != type_right)
-                return Type::UNNOWN;
+            {
+                ErrorManager::Create(Error::InvalidBinaryOperation(position, "", type_left, type_right));
+                throw Exception{};
+            }
 
             return Type::BOOL;
         }
@@ -107,7 +125,7 @@ namespace AST
     {
     protected:
         ExprPtr expr;
-        UnaryExpression(ExprPtr e) : expr(e) {}
+        UnaryExpression(Position pos, ExprPtr e) : Rvalue(pos), expr(e) {}
 
     public:
         Type GetType(LocalScope *ls)
@@ -123,6 +141,9 @@ namespace AST
 
     struct Statement
     {
+        Position position;
+        Statement(Position _position) : position(_position) {}
+
         virtual std::string ToString() = 0;
         virtual void CodeGenLLVM(LocalScope *ls, LLVMCompilerContext *llvm_cc) = 0;
     };
@@ -133,7 +154,6 @@ namespace AST
     //********************************************************************************************
 
     struct Pou;
-
 
     struct Pou
     {
@@ -146,8 +166,8 @@ namespace AST
         virtual void LLVMGenerateDefinition(PouList *gs, LLVMCompilerContext *llvm_cc) = 0;
     };
 
-    typedef Pou::PouPtr  PouPtr;
-    typedef Pou::PouList  PouList;
+    typedef Pou::PouPtr PouPtr;
+    typedef Pou::PouList PouList;
 
     //********************************************************************************************
 
@@ -185,6 +205,11 @@ namespace AST
         Variable() : name(""), type(""), initial_value(nullptr) {} // constructor for invalid variable
         Variable(std::string _name, std::string _type) : name(_name), type(_type), initial_value(nullptr) {}
         Variable(std::string _name, std::string _type, ExprPtr init_val) : name(_name), type(_type), initial_value(init_val) {}
+
+        bool IsValid()
+        {
+            return name.size() != 0 && type.size() != 0;
+        }
 
         std::string ToString()
         {
@@ -227,7 +252,7 @@ namespace AST
     private:
         llvm::Function *LLVMBuildDeclaration(LLVMCompilerContext *llvm_cc);
         llvm::Function *LLVMBuildBody(AST::PouList *gs, LLVMCompilerContext *llvm_cc);
-        
+
     public:
         llvm::Function *LLVMGetDeclaration(LLVMCompilerContext *llvm_cc);
     };
@@ -283,6 +308,8 @@ namespace AST
 
     struct EmptyStatement : public Statement
     {
+        EmptyStatement(Position pos) : Statement(pos) {}
+
         std::string ToString() override
         {
             return "{}";
@@ -300,7 +327,7 @@ namespace AST
         ExprPtr var;
         ExprPtr expr;
 
-        AssignmentStatement(ExprPtr _var, ExprPtr _expr) : var(_var), expr(_expr) {}
+        AssignmentStatement(Position pos, ExprPtr _var, ExprPtr _expr) : Statement(pos), var(_var), expr(_expr) {}
 
         std::string ToString() override
         {
@@ -315,7 +342,7 @@ namespace AST
     struct NonAsssingingStatement : public Statement
     {
         ExprPtr expr;
-        NonAsssingingStatement(ExprPtr _expr) : expr(_expr) {}
+        NonAsssingingStatement(Position pos, ExprPtr _expr) : Statement(pos), expr(_expr) {}
 
         std::string ToString() override
         {
@@ -331,7 +358,7 @@ namespace AST
         ExprPtr condition;
         StmtList statement_list;
 
-        IfStatement(ExprPtr cond, StmtList stmt_list) : condition(cond), statement_list(stmt_list) {}
+        IfStatement(Position pos, ExprPtr cond, StmtList stmt_list) : Statement(pos), condition(cond), statement_list(stmt_list) {}
 
         std::string ToString() override
         {
@@ -347,7 +374,7 @@ namespace AST
         ExprPtr condition;
         StmtList statement_list;
 
-        WhileStatement(ExprPtr cond, StmtList stmt_list) : condition(cond), statement_list(stmt_list) {}
+        WhileStatement(Position pos, ExprPtr cond, StmtList stmt_list) : Statement(pos), condition(cond), statement_list(stmt_list) {}
 
         std::string ToString() override
         {
@@ -372,7 +399,7 @@ namespace AST
         std::vector<ExprPtr> input_arguments;
         std::string callee_name;
 
-        NonformalCall(std::string callee, std::vector<ExprPtr> args) : callee_name(callee), input_arguments(args) {};
+        NonformalCall(Position pos, std::string callee, std::vector<ExprPtr> args) : Rvalue(pos), callee_name(callee), input_arguments(args) {};
 
         Type GetType(LocalScope *ls) override;
         std::string ToString() override;
@@ -389,13 +416,13 @@ namespace AST
 
         std::string callee_name;
 
-        FormalCall(
-            std::string callee) : callee_name(callee), input_arguments(), output_arguments() {};
+        FormalCall(Position pos,
+                   std::string callee) : Rvalue(pos), callee_name(callee), input_arguments(), output_arguments() {};
 
-        FormalCall(
-            std::string callee,
-            std::vector<std::pair<ExprPtr, ExprPtr>> input_args,
-            std::vector<std::pair<ExprPtr, ExprPtr>> output_args) : callee_name(callee), input_arguments(input_args), output_arguments(output_args) {};
+        FormalCall(Position pos,
+                   std::string callee,
+                   std::vector<std::pair<ExprPtr, ExprPtr>> input_args,
+                   std::vector<std::pair<ExprPtr, ExprPtr>> output_args) : Rvalue(pos), callee_name(callee), input_arguments(input_args), output_arguments(output_args) {};
 
         Type GetType(LocalScope *ls) override;
         std::string ToString() override;
@@ -409,9 +436,9 @@ namespace AST
         big_int i_value; // holds integer-like values
         double f_value;  // holds float-like values
 
-        Literal(bool v) : i_value((int)v), f_value((int)v), type(Type::BOOL) {};
-        Literal(big_int v, Type t) : i_value(v), f_value(v), type(t) {};
-        Literal(double v, Type t) : i_value(v), f_value(v), type(t) {};
+        Literal(Position pos, bool v) : Rvalue(pos), i_value((int)v), f_value((int)v), type(Type::BOOL) {};
+        Literal(Position pos, big_int v, Type t) : Rvalue(pos), i_value(v), f_value(v), type(t) {};
+        Literal(Position pos, double v, Type t) : Rvalue(pos), i_value(v), f_value(v), type(t) {};
 
         Type GetType(LocalScope *ls) override
         {
@@ -437,7 +464,7 @@ namespace AST
     struct VariableAccess : public Lvalue
     {
         std::string variable_name;
-        VariableAccess(std::string l) : variable_name(l) {};
+        VariableAccess(Position pos, std::string l) : Lvalue(pos), variable_name(l) {};
         std::string ToString() override
         {
             return variable_name;
@@ -449,7 +476,7 @@ namespace AST
 
     struct GlobalMemoryAccess : public Lvalue
     {
-
+    public:
         // I Q M
         enum class Location
         {
@@ -458,6 +485,7 @@ namespace AST
             Memory = 2,
         };
 
+    private:
         Location location;
 
         // enum class Size
@@ -475,6 +503,13 @@ namespace AST
         // [0] - byte 0
         // [1] - bit 1
         std::vector<uint64_t> address;
+
+    public:
+        GlobalMemoryAccess(Position pos, Location loc, uint64_t _size, std::vector<uint64_t> _address)
+            : Lvalue(pos),
+              location(loc),
+              size(_size),
+              address(_address) {}
 
         std::string ToString() override
         {

@@ -5,7 +5,7 @@
 
 
 #define BINARY_CONSTRUCTOR(class_name, parent_class) \
-    class_name(ExprPtr l, ExprPtr r) : parent_class(l, r){};
+    class_name(Position pos, ExprPtr l, ExprPtr r) : parent_class(pos, l, r){};
 
 #define BINARY_TOSTRING(operator_str)                                             \
     std::string ToString() override                                               \
@@ -26,7 +26,7 @@
 
 
 #define UNARY_CONSTRUCTOR(class_name) \
-    class_name(ExprPtr e) : UnaryExpression(e){};
+    class_name(Position pos, ExprPtr e) : UnaryExpression(pos, e){};
 
 #define UNARY_TOSTRING(operator_str)                                          \
     std::string ToString() override                                           \

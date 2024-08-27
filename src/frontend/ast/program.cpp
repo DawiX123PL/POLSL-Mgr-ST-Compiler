@@ -34,8 +34,7 @@ namespace AST
 
         if (code_err.size())
         {
-            std::cout << "\n"
-                      << Console::FgBrightRed(code_err) << "\n";
+            ErrorManager::Create(Error::InternalCompilerError(code_err));
         }
     }
 
@@ -217,7 +216,14 @@ namespace AST
 
         for (auto &s : statement_list)
         {
-            s->CodeGenLLVM(&ls, llvm_cc);
+            try
+            {
+                if (s)
+                    s->CodeGenLLVM(&ls, llvm_cc);
+            }
+            catch (...)
+            { /*ignore*/
+            }
         }
 
         // generate return keyword

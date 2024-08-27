@@ -22,7 +22,8 @@ enum class CommandLineFlags : unsigned int
     OUTPUT_FILE,
     VERBOSE,
     OUTPUT_C_HEADER,
-    TARGET_TRIPLE
+    TARGET_TRIPLE,
+    EMIT_LL_WITH_ERRORS,
 };
 
 void RegisterCommands(CommandLineParser<CommandLineFlags> *command_line)
@@ -32,6 +33,7 @@ void RegisterCommands(CommandLineParser<CommandLineFlags> *command_line)
     command_line->RegisterFlag(CommandLineFlags::VERBOSE, 0, {"-v", "--verbose"});
     command_line->RegisterFlag(CommandLineFlags::OUTPUT_C_HEADER, 1, {"--output-c-header"});
     command_line->RegisterFlag(CommandLineFlags::TARGET_TRIPLE, 1, {"-target"});
+    command_line->RegisterFlag(CommandLineFlags::EMIT_LL_WITH_ERRORS, 0, {"--emit_ll_with_errors"});
 }
 
 CommandLineParser<CommandLineFlags> ParseCommandLine(int argc, char const *argv[])
@@ -133,6 +135,18 @@ void CreateProgramDescription(AST::LLVMCompilerContext *llvm_cc)
 //     dest.flush();
 // }
 
+static void VerifyFunction(llvm::Module *module)
+{
+    std::string code_err;
+    llvm::raw_string_ostream ostream(code_err);
+    llvm::verifyModule(*module, &ostream);
+
+    if (code_err.size())
+    {
+        ErrorManager::Create(Error::InternalCompilerError(code_err));
+    }
+}
+
 int main(int argc, char const *argv[])
 {
     CommandLineParser<CommandLineFlags> command_line = ParseCommandLine(argc, argv);
@@ -153,8 +167,6 @@ int main(int argc, char const *argv[])
     }
 
     std::vector<File> files = ReadFileList(command_line.GetFiles());
-
-    
 
     LLVMInitializeARMTarget();
     LLVMInitializeARMTargetInfo();
@@ -197,11 +209,11 @@ int main(int argc, char const *argv[])
 
     // std::vector<Lexer::TokenList> tokens_from_files = Lexer::TokenizeFiles(err, files);
 
-    for(auto& file: files)
+    for (auto &file : files)
     {
         std::filesystem::path path = file.path;
         bool is_extern = path.extension() == ".st_extern";
-        
+
         Lexer::TokenList tokens = Lexer::Tokenize(file.path, file.content);
 
         AST::PouList pous = StParser::Parse(tokens, is_extern);
@@ -227,9 +239,20 @@ int main(int argc, char const *argv[])
     CreateProgramDescription(&llvm_cc);
 
     // Error::PrintErrors();
+
+    // verify module
+    VerifyFunction(llvm_cc.module.get());
+
     if (ErrorManager::Count())
     {
-        return -1;
+        if (command_line.IsFlagUsed(CommandLineFlags::EMIT_LL_WITH_ERRORS))
+        {
+            std::cout << Console::FgBrightYellow("[WARNING]") + " Emiting llvm ir code regardless of errors (used --emit_ll_with_errors)\n" ;
+        }
+        else
+        {
+            return -1;
+        }
     }
 
     File output_ir_file;

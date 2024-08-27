@@ -1,6 +1,8 @@
 
 #include "ast1.hpp"
 
+#include "exception.hpp"
+
 namespace AST
 {
 
@@ -69,8 +71,8 @@ namespace AST
         auto iter = ls->local_variables.find(variable_name);
         if (iter == ls->local_variables.end())
         {
-            // ERROR - undefined variable
-            return Type::UNNOWN;
+            ErrorManager::Create(Error::UndefinedVariable(position, variable_name));
+            throw Exception{};
         }
 
         return iter->second->GetType();
@@ -93,7 +95,10 @@ namespace AST
     void AssignmentStatement::CodeGenLLVM(LocalScope *ls, LLVMCompilerContext *llvm_cc)
     {
         if (var->GetType(ls) != expr->GetType(ls))
-            return; // TODO: ERROR
+        {
+            ErrorManager::Create(Error::InvalidBinaryOperation(position, ":=", var->GetType(ls), expr->GetType(ls)));
+            throw Exception{};
+        }
 
         llvm::Value *ir_expr = expr->LLVMGetValue(ls, llvm_cc);
 
@@ -116,7 +121,11 @@ namespace AST
 
     void IfStatement::CodeGenLLVM(LocalScope *ls, LLVMCompilerContext *llvm_cc)
     {
-        // TODO: IfStatement
+        if (condition->GetType(ls) != Type::BOOL)
+        {
+            ErrorManager::Create(Error::ConditionShouldBeBool(position, condition->GetType(ls)));
+            throw Exception{};
+        }
 
         llvm::Value *cond = condition->LLVMGetValue(ls, llvm_cc);
 
@@ -135,7 +144,15 @@ namespace AST
         llvm_cc->ir_builder->SetInsertPoint(if_block);
         for (auto &s : statement_list)
         {
-            s->CodeGenLLVM(ls, llvm_cc);
+            try
+            {
+
+                if (s)
+                    s->CodeGenLLVM(ls, llvm_cc);
+            }
+            catch (...)
+            {
+            }
         }
         llvm_cc->ir_builder->CreateBr(endif_block);
 
@@ -151,6 +168,12 @@ namespace AST
 
     void WhileStatement::CodeGenLLVM(LocalScope *ls, LLVMCompilerContext *llvm_cc)
     {
+        if (condition->GetType(ls) != Type::BOOL)
+        {
+            ErrorManager::Create(Error::ConditionShouldBeBool(position, condition->GetType(ls)));
+            throw Exception{};
+        }
+
         llvm::Function *function = llvm_cc->ir_builder->GetInsertBlock()->getParent();
 
         llvm::BasicBlock *condition_block = llvm::BasicBlock::Create(*llvm_cc->context, "while_condition", function);
@@ -169,7 +192,15 @@ namespace AST
 
         for (auto &s : statement_list)
         {
-            s->CodeGenLLVM(ls, llvm_cc);
+            try
+            {
+
+                if (s)
+                    s->CodeGenLLVM(ls, llvm_cc);
+            }
+            catch (...)
+            {
+            }
         }
 
         llvm_cc->ir_builder->CreateBr(condition_block); // jump back to check condition
@@ -182,8 +213,8 @@ namespace AST
         llvm::Value *a = llvm_cc->local_variables[variable_name];
         if (!a)
         {
-            // TODO: ERRROR
-            return;
+            ErrorManager::Create(Error::UndefinedVariable(position, variable_name));
+            throw Exception{};
         }
 
         llvm_cc->ir_builder->CreateStore(value, a);
@@ -196,9 +227,10 @@ namespace AST
         llvm::Value *a = llvm_cc->local_variables[variable_name];
         if (!a)
         {
-            // TODO: ERRROR
-            return nullptr;
+            ErrorManager::Create(Error::UndefinedVariable(position, variable_name));
+            throw Exception{};
         }
+
         llvm::Type *t = TypeToLLVMType(var->GetType(), llvm_cc);
         return llvm_cc->ir_builder->CreateLoad(t, a, variable_name);
     }
@@ -254,9 +286,9 @@ namespace AST
         case Type::WSTRING:
         case Type::CHAR:
         case Type::WCHAR:
-            return nullptr;
         default:
-            return nullptr; // TODO: ERROR
+            ErrorManager::Create(Error::InvalidLiteralType(position));
+            throw Exception{};
         }
     }
 
@@ -333,7 +365,7 @@ namespace AST
             llvm::Value *tmp_8bit_val = llvm_cc->ir_builder->CreateAnd(tmp_byte, tmp_mask, this->ToString() + "_value_8bit");
 
             // check if non-zero
-            llvm::Constant * zero = llvm::ConstantInt::get(u8_type, 0, false);
+            llvm::Constant *zero = llvm::ConstantInt::get(u8_type, 0, false);
             return llvm_cc->ir_builder->CreateICmpNE(tmp_8bit_val, zero, this->ToString() + "_value");
         }
 
@@ -357,7 +389,8 @@ namespace AST
             return llvm_cc->ir_builder->CreateLoad(u64_type, accessed_address, this->ToString());
         }
 
-        return nullptr;
+        ErrorManager::Create(Error::InvalidMemoryAddress(position));
+        throw Exception{};
     }
 
     void GlobalMemoryAccess::LLVMSetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc, llvm::Value *value)
@@ -451,20 +484,23 @@ namespace AST
             llvm_cc->ir_builder->CreateStore(value, accessed_address);
             return;
         }
+
+        ErrorManager::Create(Error::InvalidMemoryAddress(position));
+        throw Exception{};
     }
 
     llvm::Value *Exponentiation::LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc)
     {
         if (left->GetType(ls) != right->GetType(ls))
-            return nullptr; // TODO: ERROR
+        {
+            ErrorManager::Create(Error::InvalidBinaryOperation(position, "**", left->GetType(ls), right->GetType(ls)));
+            throw Exception{};
+        }
 
         llvm::Value *left_val = left->LLVMGetValue(ls, llvm_cc);
         llvm::Value *right_val = right->LLVMGetValue(ls, llvm_cc);
 
-        if (!left_val)
-            return nullptr; // TODO: ERROR
-        if (!right_val)
-            return nullptr; // TODO: ERROR
+        assert(left_val && right_val);
 
         if (left->GetType(ls).IsFloatingPoint())
             return llvm_cc->ir_builder->CreateBinaryIntrinsic(llvm::Intrinsic::pow, left_val, right_val);
@@ -472,21 +508,22 @@ namespace AST
         if (left->GetType(ls).IsInteger())
             return llvm_cc->ir_builder->CreateBinaryIntrinsic(llvm::Intrinsic::powi, left_val, right_val);
 
-        return nullptr; // TODO: ERROR
+        ErrorManager::Create(Error::InvalidBinaryOperation(position, "**", left->GetType(ls), right->GetType(ls)));
+        throw Exception{};
     }
 
     llvm::Value *Add::LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc)
     {
         if (left->GetType(ls) != right->GetType(ls))
-            return nullptr; // TODO: ERROR
+        {
+            ErrorManager::Create(Error::InvalidBinaryOperation(position, "+", left->GetType(ls), right->GetType(ls)));
+            throw Exception{};
+        }
 
         llvm::Value *left_val = left->LLVMGetValue(ls, llvm_cc);
         llvm::Value *right_val = right->LLVMGetValue(ls, llvm_cc);
 
-        if (!left_val)
-            return nullptr; // TODO: ERROR
-        if (!right_val)
-            return nullptr; // TODO: ERROR
+        assert(left_val && right_val);
 
         if (left->GetType(ls).IsFloatingPoint())
             return llvm_cc->ir_builder->CreateFAdd(left_val, right_val);
@@ -494,21 +531,22 @@ namespace AST
         if (left->GetType(ls).IsInteger())
             return llvm_cc->ir_builder->CreateAdd(left_val, right_val);
 
-        return nullptr; // TODO: ERROR
+        ErrorManager::Create(Error::InvalidBinaryOperation(position, "+", left->GetType(ls), right->GetType(ls)));
+        throw Exception{};
     }
 
     llvm::Value *Subtract::LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc)
     {
         if (left->GetType(ls) != right->GetType(ls))
-            return nullptr; // TODO: ERROR
+        {
+            ErrorManager::Create(Error::InvalidBinaryOperation(position, "-", left->GetType(ls), right->GetType(ls)));
+            throw Exception{};
+        }
 
         llvm::Value *left_val = left->LLVMGetValue(ls, llvm_cc);
         llvm::Value *right_val = right->LLVMGetValue(ls, llvm_cc);
 
-        if (!left_val)
-            return nullptr; // TODO: ERROR
-        if (!right_val)
-            return nullptr; // TODO: ERROR
+        assert(left_val && right_val);
 
         if (left->GetType(ls).IsFloatingPoint())
             return llvm_cc->ir_builder->CreateFSub(left_val, right_val);
@@ -516,21 +554,22 @@ namespace AST
         if (left->GetType(ls).IsInteger())
             return llvm_cc->ir_builder->CreateSub(left_val, right_val);
 
-        return nullptr; // TODO: ERROR
+        ErrorManager::Create(Error::InvalidBinaryOperation(position, "-", left->GetType(ls), right->GetType(ls)));
+        throw Exception{};
     }
 
     llvm::Value *Multiply::LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc)
     {
         if (left->GetType(ls) != right->GetType(ls))
-            return nullptr; // TODO: ERROR
+        {
+            ErrorManager::Create(Error::InvalidBinaryOperation(position, "*", left->GetType(ls), right->GetType(ls)));
+            throw Exception{};
+        }
 
         llvm::Value *left_val = left->LLVMGetValue(ls, llvm_cc);
         llvm::Value *right_val = right->LLVMGetValue(ls, llvm_cc);
 
-        if (!left_val)
-            return nullptr; // TODO: ERROR
-        if (!right_val)
-            return nullptr; // TODO: ERROR
+        assert(left_val && right_val);
 
         if (left->GetType(ls).IsFloatingPoint())
             return llvm_cc->ir_builder->CreateFMul(left_val, right_val);
@@ -538,21 +577,22 @@ namespace AST
         if (left->GetType(ls).IsInteger())
             return llvm_cc->ir_builder->CreateMul(left_val, right_val);
 
-        return nullptr; // TODO: ERROR
+        ErrorManager::Create(Error::InvalidBinaryOperation(position, "*", left->GetType(ls), right->GetType(ls)));
+        throw Exception{};
     }
 
     llvm::Value *Divide::LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc)
     {
         if (left->GetType(ls) != right->GetType(ls))
-            return nullptr; // TODO: ERROR
+        {
+            ErrorManager::Create(Error::InvalidBinaryOperation(position, "/", left->GetType(ls), right->GetType(ls)));
+            throw Exception{};
+        }
 
         llvm::Value *left_val = left->LLVMGetValue(ls, llvm_cc);
         llvm::Value *right_val = right->LLVMGetValue(ls, llvm_cc);
 
-        if (!left_val)
-            return nullptr; // TODO: ERROR
-        if (!right_val)
-            return nullptr; // TODO: ERROR
+        assert(left_val && right_val);
 
         if (left->GetType(ls).IsFloatingPoint())
             return llvm_cc->ir_builder->CreateFDiv(left_val, right_val);
@@ -563,21 +603,22 @@ namespace AST
         if (left->GetType(ls).IsSignedInteger())
             return llvm_cc->ir_builder->CreateSDiv(left_val, right_val);
 
-        return nullptr; // TODO: ERROR
+        ErrorManager::Create(Error::InvalidBinaryOperation(position, "/", left->GetType(ls), right->GetType(ls)));
+        throw Exception{};
     }
 
     llvm::Value *Modulo::LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc)
     {
         if (left->GetType(ls) != right->GetType(ls))
-            return nullptr; // TODO: ERROR
+        {
+            ErrorManager::Create(Error::InvalidBinaryOperation(position, "MOD", left->GetType(ls), right->GetType(ls)));
+            throw Exception{};
+        }
 
         llvm::Value *left_val = left->LLVMGetValue(ls, llvm_cc);
         llvm::Value *right_val = right->LLVMGetValue(ls, llvm_cc);
 
-        if (!left_val)
-            return nullptr; // TODO: ERROR
-        if (!right_val)
-            return nullptr; // TODO: ERROR
+        assert(left_val && right_val);
 
         if (left->GetType(ls).IsFloatingPoint())
             return llvm_cc->ir_builder->CreateFRem(left_val, right_val);
@@ -588,78 +629,82 @@ namespace AST
         if (left->GetType(ls).IsSignedInteger())
             return llvm_cc->ir_builder->CreateSRem(left_val, right_val);
 
-        return nullptr; // TODO: ERROR
+        ErrorManager::Create(Error::InvalidBinaryOperation(position, "MOD", left->GetType(ls), right->GetType(ls)));
+        throw Exception{};
     }
 
     llvm::Value *Or::LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc)
     {
         if (left->GetType(ls) != right->GetType(ls))
-            return nullptr; // TODO: ERROR
+        {
+            ErrorManager::Create(Error::InvalidBinaryOperation(position, "OR", left->GetType(ls), right->GetType(ls)));
+            throw Exception{};
+        }
 
         llvm::Value *left_val = left->LLVMGetValue(ls, llvm_cc);
         llvm::Value *right_val = right->LLVMGetValue(ls, llvm_cc);
 
-        if (!left_val)
-            return nullptr; // TODO: ERROR
-        if (!right_val)
-            return nullptr; // TODO: ERROR
+        assert(left_val && right_val);
 
         if (left->GetType(ls).IsBit())
             return llvm_cc->ir_builder->CreateOr(left_val, right_val);
 
-        return nullptr; // TODO: ERROR
+        ErrorManager::Create(Error::InvalidBinaryOperation(position, "OR", left->GetType(ls), right->GetType(ls)));
+        throw Exception{};
     }
 
     llvm::Value *Xor::LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc)
     {
         if (left->GetType(ls) != right->GetType(ls))
-            return nullptr; // TODO: ERROR
+        {
+            ErrorManager::Create(Error::InvalidBinaryOperation(position, "XOR", left->GetType(ls), right->GetType(ls)));
+            throw Exception{};
+        }
 
         llvm::Value *left_val = left->LLVMGetValue(ls, llvm_cc);
         llvm::Value *right_val = right->LLVMGetValue(ls, llvm_cc);
 
-        if (!left_val)
-            return nullptr; // TODO: ERROR
-        if (!right_val)
-            return nullptr; // TODO: ERROR
+        assert(left_val && right_val);
 
         if (left->GetType(ls).IsBit())
             return llvm_cc->ir_builder->CreateXor(left_val, right_val);
 
-        return nullptr; // TODO: ERROR
+        ErrorManager::Create(Error::InvalidBinaryOperation(position, "XOR", left->GetType(ls), right->GetType(ls)));
+        throw Exception{};
     }
 
     llvm::Value *And::LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc)
     {
         if (left->GetType(ls) != right->GetType(ls))
-            return nullptr; // TODO: ERROR
+        {
+            ErrorManager::Create(Error::InvalidBinaryOperation(position, "AND", left->GetType(ls), right->GetType(ls)));
+            throw Exception{};
+        }
 
         llvm::Value *left_val = left->LLVMGetValue(ls, llvm_cc);
         llvm::Value *right_val = right->LLVMGetValue(ls, llvm_cc);
 
-        if (!left_val)
-            return nullptr; // TODO: ERROR
-        if (!right_val)
-            return nullptr; // TODO: ERROR
+        assert(left_val && right_val);
 
         if (left->GetType(ls).IsBit())
             return llvm_cc->ir_builder->CreateXor(left_val, right_val);
 
-        return nullptr; // TODO: ERROR
+        ErrorManager::Create(Error::InvalidBinaryOperation(position, "AND", left->GetType(ls), right->GetType(ls)));
+        throw Exception{};
     }
 
     llvm::Value *Gt::LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc)
     {
         if (left->GetType(ls) != right->GetType(ls))
-            return nullptr; // TODO: ERROR
+        {
+            ErrorManager::Create(Error::InvalidBinaryOperation(position, ">", left->GetType(ls), right->GetType(ls)));
+            throw Exception{};
+        }
 
         llvm::Value *left_val = left->LLVMGetValue(ls, llvm_cc);
         llvm::Value *right_val = right->LLVMGetValue(ls, llvm_cc);
 
-        if (!left_val)
-            return nullptr; // TODO: ERROR
-        if (!right_val)
-            return nullptr; // TODO: ERROR
+        assert(left_val && right_val);
 
         if (left->GetType(ls).IsFloatingPoint())
             return llvm_cc->ir_builder->CreateFCmpUGT(left_val, right_val); // unordered greater than
@@ -670,21 +715,22 @@ namespace AST
         if (left->GetType(ls).IsUnsignedInteger())
             return llvm_cc->ir_builder->CreateICmpUGT(left_val, right_val); // unsigned greater than
 
-        return nullptr; // TODO: ERROR
+        ErrorManager::Create(Error::InvalidBinaryOperation(position, ">", left->GetType(ls), right->GetType(ls)));
+        throw Exception{};
     }
 
     llvm::Value *Lt::LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc)
     {
         if (left->GetType(ls) != right->GetType(ls))
-            return nullptr; // TODO: ERROR
+        {
+            ErrorManager::Create(Error::InvalidBinaryOperation(position, "<", left->GetType(ls), right->GetType(ls)));
+            throw Exception{};
+        }
 
         llvm::Value *left_val = left->LLVMGetValue(ls, llvm_cc);
         llvm::Value *right_val = right->LLVMGetValue(ls, llvm_cc);
 
-        if (!left_val)
-            return nullptr; // TODO: ERROR
-        if (!right_val)
-            return nullptr; // TODO: ERROR
+        assert(left_val && right_val);
 
         if (left->GetType(ls).IsFloatingPoint())
             return llvm_cc->ir_builder->CreateFCmpULT(left_val, right_val); // unordered Less than
@@ -695,21 +741,22 @@ namespace AST
         if (left->GetType(ls).IsUnsignedInteger())
             return llvm_cc->ir_builder->CreateICmpULT(left_val, right_val); // unsigned Less than
 
-        return nullptr; // TODO: ERROR
+        ErrorManager::Create(Error::InvalidBinaryOperation(position, "<", left->GetType(ls), right->GetType(ls)));
+        throw Exception{};
     }
 
     llvm::Value *Geq::LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc)
     {
         if (left->GetType(ls) != right->GetType(ls))
-            return nullptr; // TODO: ERROR
+        {
+            ErrorManager::Create(Error::InvalidBinaryOperation(position, ">=", left->GetType(ls), right->GetType(ls)));
+            throw Exception{};
+        }
 
         llvm::Value *left_val = left->LLVMGetValue(ls, llvm_cc);
         llvm::Value *right_val = right->LLVMGetValue(ls, llvm_cc);
 
-        if (!left_val)
-            return nullptr; // TODO: ERROR
-        if (!right_val)
-            return nullptr; // TODO: ERROR
+        assert(left_val && right_val);
 
         if (left->GetType(ls).IsFloatingPoint())
             return llvm_cc->ir_builder->CreateFCmpUGE(left_val, right_val); // unordered Greater or equal
@@ -720,21 +767,22 @@ namespace AST
         if (left->GetType(ls).IsUnsignedInteger())
             return llvm_cc->ir_builder->CreateICmpUGE(left_val, right_val); // unsigned Greater or equal
 
-        return nullptr; // TODO: ERROR
+        ErrorManager::Create(Error::InvalidBinaryOperation(position, ">=", left->GetType(ls), right->GetType(ls)));
+        throw Exception{};
     }
 
     llvm::Value *Leq::LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc)
     {
         if (left->GetType(ls) != right->GetType(ls))
-            return nullptr; // TODO: ERROR
+        {
+            ErrorManager::Create(Error::InvalidBinaryOperation(position, "<=", left->GetType(ls), right->GetType(ls)));
+            throw Exception{};
+        }
 
         llvm::Value *left_val = left->LLVMGetValue(ls, llvm_cc);
         llvm::Value *right_val = right->LLVMGetValue(ls, llvm_cc);
 
-        if (!left_val)
-            return nullptr; // TODO: ERROR
-        if (!right_val)
-            return nullptr; // TODO: ERROR
+        assert(left_val && right_val);
 
         if (left->GetType(ls).IsFloatingPoint())
             return llvm_cc->ir_builder->CreateFCmpULE(left_val, right_val); // unordered Less or equal
@@ -745,21 +793,22 @@ namespace AST
         if (left->GetType(ls).IsUnsignedInteger())
             return llvm_cc->ir_builder->CreateICmpULE(left_val, right_val); // unsigned Less or equal
 
-        return nullptr; // TODO: ERROR
+        ErrorManager::Create(Error::InvalidBinaryOperation(position, "<=", left->GetType(ls), right->GetType(ls)));
+        throw Exception{};
     }
 
     llvm::Value *Eq::LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc)
     {
         if (left->GetType(ls) != right->GetType(ls))
-            return nullptr; // TODO: ERROR
+        {
+            ErrorManager::Create(Error::InvalidBinaryOperation(position, "=", left->GetType(ls), right->GetType(ls)));
+            throw Exception{};
+        }
 
         llvm::Value *left_val = left->LLVMGetValue(ls, llvm_cc);
         llvm::Value *right_val = right->LLVMGetValue(ls, llvm_cc);
 
-        if (!left_val)
-            return nullptr; // TODO: ERROR
-        if (!right_val)
-            return nullptr; // TODO: ERROR
+        assert(left_val && right_val);
 
         if (left->GetType(ls).IsFloatingPoint())
             return llvm_cc->ir_builder->CreateFCmpUEQ(left_val, right_val); // unordered equal
@@ -767,21 +816,22 @@ namespace AST
         if (left->GetType(ls).IsInteger())
             return llvm_cc->ir_builder->CreateICmpEQ(left_val, right_val); // equal
 
-        return nullptr; // TODO: ERROR
+        ErrorManager::Create(Error::InvalidBinaryOperation(position, "=", left->GetType(ls), right->GetType(ls)));
+        throw Exception{};
     }
 
     llvm::Value *Neq::LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc)
     {
         if (left->GetType(ls) != right->GetType(ls))
-            return nullptr; // TODO: ERROR
+        {
+            ErrorManager::Create(Error::InvalidBinaryOperation(position, "<>", left->GetType(ls), right->GetType(ls)));
+            throw Exception{};
+        }
 
         llvm::Value *left_val = left->LLVMGetValue(ls, llvm_cc);
         llvm::Value *right_val = right->LLVMGetValue(ls, llvm_cc);
 
-        if (!left_val)
-            return nullptr; // TODO: ERROR
-        if (!right_val)
-            return nullptr; // TODO: ERROR
+        assert(left_val && right_val);
 
         if (left->GetType(ls).IsFloatingPoint())
             return llvm_cc->ir_builder->CreateFCmpUNE(left_val, right_val); // unordered not equal
@@ -789,28 +839,28 @@ namespace AST
         if (left->GetType(ls).IsInteger())
             return llvm_cc->ir_builder->CreateICmpNE(left_val, right_val); // not equal
 
-        return nullptr; // TODO: ERROR
+        ErrorManager::Create(Error::InvalidBinaryOperation(position, "<>", left->GetType(ls), right->GetType(ls)));
+        throw Exception{};
     }
 
     llvm::Value *UnaryPlus::LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc)
     {
         llvm::Value *expr_val = expr->LLVMGetValue(ls, llvm_cc);
 
-        if (!expr_val)
-            return nullptr; // TODO: ERROR
+        assert(expr_val);
 
         if (expr->GetType(ls).IsNumeric())
             return expr_val;
 
-        return nullptr; // TODO: ERROR
+        ErrorManager::Create(Error::InvalidUnaryOperation(position, "+", expr->GetType(ls)));
+        throw Exception{};
     }
 
     llvm::Value *UnaryMinus::LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc)
     {
         llvm::Value *expr_val = expr->LLVMGetValue(ls, llvm_cc);
 
-        if (!expr_val)
-            return nullptr; // TODO: ERROR
+        assert(expr_val);
 
         if (expr->GetType(ls).IsFloatingPoint())
             return llvm_cc->ir_builder->CreateFNeg(expr_val);
@@ -818,20 +868,21 @@ namespace AST
         if (expr->GetType(ls).IsInteger())
             return llvm_cc->ir_builder->CreateNeg(expr_val);
 
-        return nullptr; // TODO: ERROR
+        ErrorManager::Create(Error::InvalidUnaryOperation(position, "-", expr->GetType(ls)));
+        throw Exception{};
     }
 
     llvm::Value *Negation::LLVMGetValue(LocalScope *ls, LLVMCompilerContext *llvm_cc)
     {
         llvm::Value *expr_val = expr->LLVMGetValue(ls, llvm_cc);
 
-        if (!expr_val)
-            return nullptr; // TODO: ERROR
+        assert(expr_val);
 
         if (expr->GetType(ls).IsBit())
             return llvm_cc->ir_builder->CreateNot(expr_val);
 
-        return nullptr; // TODO: ERROR
+        ErrorManager::Create(Error::InvalidUnaryOperation(position, "NOT", expr->GetType(ls)));
+        throw Exception{};
     }
 
 }

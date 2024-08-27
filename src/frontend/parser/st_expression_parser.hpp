@@ -53,7 +53,6 @@ namespace StParser::Expression
         }
 
     public:
-
         //  void Parse Expression()
         // {
         //     Parse Expression();
@@ -161,13 +160,13 @@ namespace StParser::Expression
             if (std::regex_match(token.str, mr, std::regex("FALSE|BOOL#0|BOOL#FALSE", std::regex_constants::syntax_option_type::icase)))
             {
                 AST::Type type = AST::Type::BOOL;
-                return AST::MakeExpr(AST::Literal(false));
+                return AST::MakeExpr(AST::Literal(token.pos, false));
             }
 
             if (std::regex_match(token.str, mr, std::regex("TRUE|BOOL#1|BOOL#TRUE", std::regex_constants::syntax_option_type::icase)))
             {
                 AST::Type type = AST::Type::BOOL;
-                return AST::MakeExpr(AST::Literal(true));
+                return AST::MakeExpr(AST::Literal(token.pos, true));
             }
 
             // check if integer (arbitrary precision)
@@ -179,7 +178,7 @@ namespace StParser::Expression
                     ErrorManager::Create(Error::InvalidNumericLiteral(token.pos));
                 }
                 AST::Type type = AST::Type::INT;
-                return AST::MakeExpr(AST::Literal(num, type));
+                return AST::MakeExpr(AST::Literal(token.pos, num, type));
             }
 
             // check if float
@@ -191,7 +190,7 @@ namespace StParser::Expression
                 {
                     ErrorManager::Create(Error::InvalidNumericLiteral(token.pos));
                 }
-                return AST::MakeExpr(AST::Literal(num, type));
+                return AST::MakeExpr(AST::Literal(token.pos, num, type));
             }
 
             // typed numeric literal
@@ -206,7 +205,7 @@ namespace StParser::Expression
                     {
                         ErrorManager::Create(Error::InvalidNumericLiteral(token.pos));
                     }
-                    return AST::MakeExpr(AST::Literal(num, type));
+                    return AST::MakeExpr(AST::Literal(token.pos, num, type));
                 }
 
                 // integer like types
@@ -217,7 +216,7 @@ namespace StParser::Expression
                     {
                         ErrorManager::Create(Error::InvalidNumericLiteral(token.pos));
                     }
-                    return AST::MakeExpr(AST::Literal(num, type));
+                    return AST::MakeExpr(AST::Literal(token.pos, num, type));
                 }
             }
 
@@ -240,8 +239,6 @@ namespace StParser::Expression
                 return nullptr;
             }
 
-            AST::GlobalMemoryAccess mem_access;
-
             std::map<std::string, AST::GlobalMemoryAccess::Location> location_names = {
                 {"I", AST::GlobalMemoryAccess::Location::Input},
                 {"Q", AST::GlobalMemoryAccess::Location::Output},
@@ -254,7 +251,7 @@ namespace StParser::Expression
                 return nullptr;
             }
 
-            mem_access.location = loc->second;
+            AST::GlobalMemoryAccess::Location location = loc->second;
 
             std::map<std::string, uint64_t> size_names = {
                 {"", 1},
@@ -265,14 +262,16 @@ namespace StParser::Expression
                 {"L", 64},
             };
 
-            auto size = size_names.find(mr[2].str());
-            if (size == size_names.end())
+            auto size_iter = size_names.find(mr[2].str());
+            if (size_iter == size_names.end())
             {
                 ErrorManager::Create(Error::InvalidGlobalAddress(token.pos));
                 return nullptr;
             }
 
-            mem_access.size = size->second;
+            uint64_t size = size_iter->second;
+
+            std::vector<uint64_t> address;
 
             std::string::const_iterator next_str = token.str.begin();
             std::string::const_iterator end_str = token.str.end();
@@ -283,10 +282,10 @@ namespace StParser::Expression
                 big_int address_num;
                 ParseInteger(mr[0].str(), 10, &address_num);
 
-                mem_access.address.emplace_back(address_num);
+                address.emplace_back(address_num);
             }
 
-            return AST::MakeExpr(mem_access);
+            return AST::MakeExpr(AST::GlobalMemoryAccess(token.pos, location, size, address));
         }
 
         // function calls
@@ -361,7 +360,8 @@ namespace StParser::Expression
                 return nullptr;
             }
 
-            std::string callee_name = GetCurrentToken().str; // name
+            Lexer::Token callee_name_token = GetCurrentToken();
+            std::string callee_name = callee_name_token.str; // name
             PopToken();
 
             if (!IsNextToken(Lexer::TokenType::ROUND_BRACKET_OPENING))
@@ -375,7 +375,7 @@ namespace StParser::Expression
             if (IsNextToken(Lexer::TokenType::ROUND_BRACKET_CLOSING))
             {
                 PopToken();
-                return AST::MakeExpr(AST::FormalCall(callee_name));
+                return AST::MakeExpr(AST::FormalCall(callee_name_token.pos, callee_name));
             }
 
             std::vector<AST::ExprPtr> non_formal_args;
@@ -396,15 +396,15 @@ namespace StParser::Expression
 
             if (non_formal_args.size())
             {
-                return AST::MakeExpr(AST::NonformalCall(callee_name, non_formal_args));
+                return AST::MakeExpr(AST::NonformalCall(callee_name_token.pos, callee_name, non_formal_args));
             }
 
             if (formal_input_args.size() || formal_output_args.size())
             {
-                return AST::MakeExpr(AST::FormalCall(callee_name, formal_input_args, formal_output_args));
+                return AST::MakeExpr(AST::FormalCall(callee_name_token.pos, callee_name, formal_input_args, formal_output_args));
             }
 
-            return AST::MakeExpr(AST::FormalCall(callee_name));
+            return AST::MakeExpr(AST::FormalCall(callee_name_token.pos, callee_name));
         }
 
         [[nodiscard]] AST::ExprPtr ParsePrimaryExpression()
@@ -441,7 +441,7 @@ namespace StParser::Expression
                 Lexer::Token token = GetCurrentToken();
                 PopToken();
 
-                AST::ExprPtr expr = AST::MakeExpr(AST::VariableAccess(token.str));
+                AST::ExprPtr expr = AST::MakeExpr(AST::VariableAccess(token.pos, token.str));
                 return expr;
             }
 
@@ -480,20 +480,21 @@ namespace StParser::Expression
                 IsNextToken(Lexer::TokenType::MINUS) ||
                 IsNextToken(Lexer::TokenType::NEGATION))
             {
-                Lexer::TokenType type = tokens[current_index].type;
+                Lexer::Token token = GetCurrentToken();
+                Lexer::TokenType type = token.type;
 
                 PopToken();
                 // todo: parse
                 AST::ExprPtr expr = ParsePrimaryExpression();
 
                 if (type == Lexer::TokenType::PLUS)
-                    return AST::MakeExpr(AST::UnaryPlus(expr));
+                    return AST::MakeExpr(AST::UnaryPlus(token.pos, expr));
 
                 if (type == Lexer::TokenType::MINUS)
-                    return AST::MakeExpr(AST::UnaryMinus(expr));
+                    return AST::MakeExpr(AST::UnaryMinus(token.pos, expr));
 
                 if (type == Lexer::TokenType::NEGATION)
-                    return AST::MakeExpr(AST::Negation(expr));
+                    return AST::MakeExpr(AST::Negation(token.pos, expr));
             }
 
             return ParsePrimaryExpression();
@@ -505,10 +506,11 @@ namespace StParser::Expression
 
             while (IsNextToken(Lexer::TokenType::EXPONENTIATION))
             {
+                Lexer::Token token = GetCurrentToken();
                 PopToken();
-                AST::ExprPtr right = ParseUnaryExpression();
 
-                left = AST::MakeExpr(AST::Exponentiation(left, right));
+                AST::ExprPtr right = ParseUnaryExpression();
+                left = AST::MakeExpr(AST::Exponentiation(token.pos, left, right));
             }
 
             return left;
@@ -522,19 +524,19 @@ namespace StParser::Expression
                    IsNextToken(Lexer::TokenType::DIVIDE) ||
                    IsNextToken(Lexer::TokenType::MODULO))
             {
-                Lexer::TokenType type = tokens[current_index].type;
+                Lexer::Token token = GetCurrentToken();
 
                 PopToken();
                 AST::ExprPtr right = ParsePowerExpression();
 
-                if (type == Lexer::TokenType::MULTIPLY)
-                    left = AST::MakeExpr(AST::Multiply(left, right));
+                if (token.type == Lexer::TokenType::MULTIPLY)
+                    left = AST::MakeExpr(AST::Multiply(token.pos, left, right));
 
-                if (type == Lexer::TokenType::DIVIDE)
-                    left = AST::MakeExpr(AST::Divide(left, right));
+                if (token.type == Lexer::TokenType::DIVIDE)
+                    left = AST::MakeExpr(AST::Divide(token.pos, left, right));
 
-                if (type == Lexer::TokenType::MODULO)
-                    left = AST::MakeExpr(AST::Modulo(left, right));
+                if (token.type == Lexer::TokenType::MODULO)
+                    left = AST::MakeExpr(AST::Modulo(token.pos, left, right));
             }
 
             return left;
@@ -547,16 +549,16 @@ namespace StParser::Expression
             while (IsNextToken(Lexer::TokenType::PLUS) ||
                    IsNextToken(Lexer::TokenType::MINUS))
             {
-                Lexer::TokenType type = tokens[current_index].type;
+                Lexer::Token token = GetCurrentToken();
 
                 PopToken();
                 AST::ExprPtr right = ParseTerm();
 
-                if (type == Lexer::TokenType::PLUS)
-                    left = AST::MakeExpr(AST::Add(left, right));
+                if (token.type == Lexer::TokenType::PLUS)
+                    left = AST::MakeExpr(AST::Add(token.pos, left, right));
 
-                if (type == Lexer::TokenType::MINUS)
-                    left = AST::MakeExpr(AST::Subtract(left, right));
+                if (token.type == Lexer::TokenType::MINUS)
+                    left = AST::MakeExpr(AST::Subtract(token.pos, left, right));
             }
 
             return left;
@@ -571,22 +573,22 @@ namespace StParser::Expression
                    IsNextToken(Lexer::TokenType::GREATER_OR_EQUAL) ||
                    IsNextToken(Lexer::TokenType::LESS_OR_EQUAL))
             {
-                Lexer::TokenType type = tokens[current_index].type;
+                Lexer::Token token = GetCurrentToken();
 
                 PopToken();
                 AST::ExprPtr right = ParseAddExpression();
 
-                if (type == Lexer::TokenType::GREATER_THAN)
-                    left = AST::MakeExpr(AST::Gt(left, right));
+                if (token.type == Lexer::TokenType::GREATER_THAN)
+                    left = AST::MakeExpr(AST::Gt(token.pos, left, right));
 
-                if (type == Lexer::TokenType::LESS_THAN)
-                    left = AST::MakeExpr(AST::Lt(left, right));
+                if (token.type == Lexer::TokenType::LESS_THAN)
+                    left = AST::MakeExpr(AST::Lt(token.pos, left, right));
 
-                if (type == Lexer::TokenType::GREATER_OR_EQUAL)
-                    left = AST::MakeExpr(AST::Geq(left, right));
+                if (token.type == Lexer::TokenType::GREATER_OR_EQUAL)
+                    left = AST::MakeExpr(AST::Geq(token.pos, left, right));
 
-                if (type == Lexer::TokenType::LESS_OR_EQUAL)
-                    left = AST::MakeExpr(AST::Leq(left, right));
+                if (token.type == Lexer::TokenType::LESS_OR_EQUAL)
+                    left = AST::MakeExpr(AST::Leq(token.pos, left, right));
             }
 
             return left;
@@ -599,16 +601,16 @@ namespace StParser::Expression
             while (IsNextToken(Lexer::TokenType::EQUALITY) ||
                    IsNextToken(Lexer::TokenType::INEQUALITY))
             {
-                Lexer::TokenType type = tokens[current_index].type;
+                Lexer::Token token = GetCurrentToken();
 
                 PopToken();
                 AST::ExprPtr right = ParseEqualityExpression();
 
-                if (type == Lexer::TokenType::EQUALITY)
-                    left = AST::MakeExpr(AST::Eq(left, right));
+                if (token.type == Lexer::TokenType::EQUALITY)
+                    left = AST::MakeExpr(AST::Eq(token.pos, left, right));
 
-                if (type == Lexer::TokenType::INEQUALITY)
-                    left = AST::MakeExpr(AST::Neq(left, right));
+                if (token.type == Lexer::TokenType::INEQUALITY)
+                    left = AST::MakeExpr(AST::Neq(token.pos, left, right));
             }
 
             return left;
@@ -620,9 +622,11 @@ namespace StParser::Expression
 
             while (IsNextToken(Lexer::TokenType::BOOLEAN_AND))
             {
+                Lexer::Token token = GetCurrentToken();
+
                 PopToken();
                 AST::ExprPtr right = ParseCompareExpression();
-                left = AST::MakeExpr(AST::And(left, right));
+                left = AST::MakeExpr(AST::And(token.pos, left, right));
             }
 
             return left;
@@ -634,9 +638,11 @@ namespace StParser::Expression
 
             while (IsNextToken(Lexer::TokenType::BOOLEAN_XOR))
             {
+                Lexer::Token token = GetCurrentToken();
+
                 PopToken();
                 AST::ExprPtr right = ParseAndExpression();
-                left = AST::MakeExpr(AST::Xor(left, right));
+                left = AST::MakeExpr(AST::Xor(token.pos, left, right));
             }
 
             return left;
@@ -648,9 +654,11 @@ namespace StParser::Expression
 
             while (IsNextToken(Lexer::TokenType::BOOLEAN_OR))
             {
+                Lexer::Token token = GetCurrentToken();
+
                 PopToken();
                 AST::ExprPtr right = ParseXorExpression();
-                left = AST::MakeExpr(AST::Or(left, right));
+                left = AST::MakeExpr(AST::Or(token.pos, left, right));
             }
 
             return left;

@@ -138,7 +138,7 @@ namespace StParser
 
         if (tokens.size() == 0)
         {
-            ErrorManager::Create(Error::MissingKeyword(Position(nullptr, 0, 0), type));                                                 // TODO handle special case
+            ErrorManager::Create(Error::MissingKeyword(Position(nullptr, 0, 0), type));                                        // TODO handle special case
             ErrorManager::Create(Error::InternalCompilerError(__FILE__ ":" + std::to_string(__LINE__) + " Empty token list")); // TODO handle special case
             return false;
         }
@@ -207,7 +207,7 @@ namespace StParser
                 ErrorManager::Create(Error::UnexpectedTokenError(pos, type));
             }
 
-            if(end_index == -1)
+            if (end_index == -1)
             {
                 break;
             }
@@ -400,7 +400,7 @@ namespace StParser
 
                 // TODO parse assignment expression or function call
             }
-            if(end_index == -1)
+            if (end_index == -1)
             {
                 end_index = tokens.size();
             }
@@ -418,11 +418,11 @@ namespace StParser
     AST::StmtPtr ParseStatement(Lexer::TokenList tokens)
     {
         if (!ExpectToken(tokens, -1, Lexer::TokenType::SEMICOLON))
-            return AST::MakeStmt(AST::EmptyStatement());
+            return nullptr;
 
         if (tokens.size() == 1)
         {
-            return AST::MakeStmt(AST::EmptyStatement()); // empty statement. DO NOT EMIT code
+            return AST::MakeStmt(AST::EmptyStatement(tokens[0].pos)); // empty statement. DO NOT EMIT code
         }
 
         int assign_operator_index = FindToken(tokens, Lexer::TokenType::ASSIGN);
@@ -431,7 +431,7 @@ namespace StParser
         {
             Lexer::TokenList expr_tokens = Split(tokens, 0, -2);
             AST::ExprPtr expr = Expression::Parse(expr_tokens);
-            return AST::MakeStmt(AST::NonAsssingingStatement(expr));
+            return AST::MakeStmt(AST::NonAsssingingStatement(tokens[0].pos, expr));
         }
         else
         {
@@ -441,7 +441,7 @@ namespace StParser
             AST::ExprPtr left_expr = Expression::Parse(left_expr_tokens);
             AST::ExprPtr right_expr = Expression::Parse(right_expr_tokens);
 
-            return AST::MakeStmt(AST::AssignmentStatement(left_expr, right_expr));
+            return AST::MakeStmt(AST::AssignmentStatement(tokens[assign_operator_index].pos, left_expr, right_expr));
         }
     }
 
@@ -451,11 +451,11 @@ namespace StParser
     AST::StmtPtr ParseForStatement(Lexer::TokenList tokens)
     {
         if (!ExpectToken(tokens, 0, Lexer::TokenType::FOR))
-            return AST::MakeStmt(AST::EmptyStatement());
+            return nullptr;
         if (!ExpectToken(tokens, -2, Lexer::TokenType::END_FOR))
-            return AST::MakeStmt(AST::EmptyStatement());
+            return nullptr;
         if (!ExpectToken(tokens, -1, Lexer::TokenType::SEMICOLON))
-            return AST::MakeStmt(AST::EmptyStatement());
+            return nullptr;
 
         int to_keyword_pos = FindToken(tokens, 1, Lexer::TokenType::TO);
         int by_keyword_pos = FindToken(tokens, to_keyword_pos, Lexer::TokenType::BY);
@@ -464,19 +464,19 @@ namespace StParser
         if (to_keyword_pos == -1)
         {
             ErrorManager::Create(Error::MissingKeywordAfter(tokens[0].pos, tokens[0].type, Lexer::TokenType::TO));
-            return AST::MakeStmt(AST::EmptyStatement());
+            return nullptr;
         }
 
         if (by_keyword_pos == -1)
         {
             ErrorManager::Create(Error::MissingKeywordAfter(tokens[0].pos, tokens[0].type, Lexer::TokenType::BY));
-            return AST::MakeStmt(AST::EmptyStatement());
+            return nullptr;
         }
 
         if (do_keyword_pos == -1)
         {
             ErrorManager::Create(Error::MissingKeywordAfter(tokens[0].pos, tokens[0].type, Lexer::TokenType::DO));
-            return AST::MakeStmt(AST::EmptyStatement());
+            return nullptr;
         }
 
         Lexer::TokenList control_var_init_tokens = Split(tokens, 1, to_keyword_pos - 1);                 // FOR ... TO
@@ -489,7 +489,7 @@ namespace StParser
         AST::StmtList statement_list = ParseStatementList(statement_list_tokens);
 
         // TODO
-        return AST::MakeStmt(AST::EmptyStatement());
+        return nullptr;
     }
 
     // WHILE ... DO
@@ -498,17 +498,17 @@ namespace StParser
     AST::StmtPtr ParseWhileStatement(Lexer::TokenList tokens)
     {
         if (!ExpectToken(tokens, 0, Lexer::TokenType::WHILE))
-            return AST::MakeStmt(AST::EmptyStatement());
+            return nullptr;
         if (!ExpectToken(tokens, -2, Lexer::TokenType::END_WHILE))
-            return AST::MakeStmt(AST::EmptyStatement());
+            return nullptr;
         if (!ExpectToken(tokens, -1, Lexer::TokenType::SEMICOLON))
-            return AST::MakeStmt(AST::EmptyStatement());
+            return nullptr;
 
         int do_keyword_pos = FindToken(tokens, Lexer::TokenType::DO);
         if (do_keyword_pos == -1)
         {
             ErrorManager::Create(Error::MissingKeywordAfter(tokens[0].pos, tokens[0].type, Lexer::TokenType::DO));
-            return AST::MakeStmt(AST::EmptyStatement());
+            return nullptr;
         }
 
         Lexer::TokenList condition_tokens = Split(tokens, 1, do_keyword_pos - 1);
@@ -517,7 +517,7 @@ namespace StParser
         AST::ExprPtr condition = Expression::Parse(condition_tokens);
         AST::StmtList statemen_list = ParseStatementList(statement_list_tokens);
 
-        return AST::MakeStmt(AST::WhileStatement(condition, statemen_list));
+        return AST::MakeStmt(AST::WhileStatement(tokens[0].pos, condition, statemen_list));
     }
 
     // REPEAT
@@ -527,11 +527,11 @@ namespace StParser
     AST::StmtPtr ParseRepeatStatement(Lexer::TokenList tokens)
     {
         if (!ExpectToken(tokens, 0, Lexer::TokenType::REPEAT))
-            return AST::MakeStmt(AST::EmptyStatement());
+            return nullptr;
         if (!ExpectToken(tokens, -2, Lexer::TokenType::END_REPEAT))
-            return AST::MakeStmt(AST::EmptyStatement());
+            return nullptr;
         if (!ExpectToken(tokens, -1, Lexer::TokenType::SEMICOLON))
-            return AST::MakeStmt(AST::EmptyStatement());
+            return nullptr;
 
         int until_keyword_pos = FindTokenAndIgnoreNeasted(
             tokens, 1, Lexer::TokenType::UNTIL,
@@ -540,7 +540,7 @@ namespace StParser
         if (until_keyword_pos == -1)
         {
             ErrorManager::Create(Error::MissingKeywordAfter(tokens[0].pos, tokens[0].type, Lexer::TokenType::UNTIL));
-            return AST::MakeStmt(AST::EmptyStatement());
+            return nullptr;
         }
 
         Lexer::TokenList statement_list_tokens = Split(tokens, 1, until_keyword_pos - 1);
@@ -549,7 +549,7 @@ namespace StParser
         // todo parse condition
         // todo parse statement_list
         AST::StmtList stmt_list = ParseStatementList(statement_list_tokens);
-        return AST::MakeStmt(AST::EmptyStatement());
+        return nullptr;
     }
 
     // TODO: finish this (or refactor)
@@ -560,13 +560,13 @@ namespace StParser
     AST::StmtPtr ParseIfStatement(Lexer::TokenList tokens)
     {
         if (!ExpectToken(tokens, 0, Lexer::TokenType::IF))
-            return AST::MakeStmt(AST::EmptyStatement());
+            return nullptr;
 
         if (!ExpectToken(tokens, -2, Lexer::TokenType::END_IF))
-            return AST::MakeStmt(AST::EmptyStatement());
+            return nullptr;
 
         if (!ExpectToken(tokens, -1, Lexer::TokenType::SEMICOLON))
-            return AST::MakeStmt(AST::EmptyStatement());
+            return nullptr;
 
         int then_keyword_pos = FindTokenAndIgnoreNeasted(
             tokens, 1, Lexer::TokenType::THEN,
@@ -575,7 +575,7 @@ namespace StParser
         if (then_keyword_pos == -1)
         {
             ErrorManager::Create(Error::MissingKeywordAfter(tokens[0].pos, tokens[0].type, Lexer::TokenType::THEN));
-            return AST::MakeStmt(AST::EmptyStatement());
+            return nullptr;
         }
 
         Lexer::TokenList condition_tokens = Split(tokens, 1, then_keyword_pos - 1);
@@ -585,7 +585,7 @@ namespace StParser
         // todo parse statement_list
         AST::ExprPtr condition = Expression::Parse(condition_tokens);
         AST::StmtList statement_list = ParseStatementList(statement_list_tokens);
-        return AST::MakeStmt(AST::IfStatement(condition, statement_list));
+        return AST::MakeStmt(AST::IfStatement(tokens[0].pos, condition, statement_list));
     }
 
     AllVars ParseAllVars(Lexer::TokenList tokens, int *last_position)
@@ -693,7 +693,11 @@ namespace StParser
             // find semicolon separating variables
             int end_index = FindToken(tokens, index, Lexer::TokenType::SEMICOLON);
             AST::Variable variable = ParseVariableDeclaration(Split(tokens, index, end_index));
-            variables.push_back(variable);
+
+            if(variable.IsValid())
+            {
+                variables.push_back(variable);
+            }
 
             index = end_index + 1;
         }

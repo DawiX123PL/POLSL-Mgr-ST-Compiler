@@ -5,6 +5,7 @@
 #include "position.hpp"
 
 #include "./frontend/lexer/st_token_type.hpp"
+#include "./frontend/ast/type.hpp"
 
 namespace Error
 {
@@ -83,7 +84,7 @@ namespace Error
         int base;
 
     public:
-        InvalidNumberWithGivenBase(Position _position, std::string _number, int _base) :BasicPosinionalError(_position),  number(_number), base(_base) {};
+        InvalidNumberWithGivenBase(Position _position, std::string _number, int _base) : BasicPosinionalError(_position), number(_number), base(_base) {};
 
         std::string MessageToString() const override
         {
@@ -241,7 +242,7 @@ namespace Error
 
     public:
         InvalidExpresion(Position _position)
-            : BasicPosinionalError(_position){};
+            : BasicPosinionalError(_position) {};
 
         std::string MessageToString() const override
         {
@@ -309,6 +310,95 @@ namespace Error
             return "Invalid memory address";
         };
     };
+
+    class InvalidBinaryOperation : public BasicPosinionalError
+    {
+        std::string operation;
+        AST::Type left;
+        AST::Type right;
+
+    public:
+        InvalidBinaryOperation(Position _position, std::string _operation, AST::Type _left, AST::Type _right)
+            : BasicPosinionalError(_position),
+              operation(_operation),
+              left(_left),
+              right(_right) {};
+
+        std::string MessageToString() const override
+        {
+            return "Cannot perfom operation '" + operation + "' on types " + left.ToString() + " and " + right.ToString();
+        };
+    };
+
+    class InvalidUnaryOperation : public BasicPosinionalError
+    {
+        std::string operation;
+        AST::Type type;
+
+    public:
+        InvalidUnaryOperation(Position _position, std::string _operation, AST::Type _type)
+            : BasicPosinionalError(_position),
+              operation(_operation),
+              type(_type) {};
+
+        std::string MessageToString() const override
+        {
+            return "Cannot perfom operation '" + operation + "' type " + type.ToString();
+        };
+    };
+
+    class ConditionShouldBeBool : public BasicPosinionalError
+    {
+        AST::Type type;
+
+    public:
+        ConditionShouldBeBool(Position _position, AST::Type _type)
+            : BasicPosinionalError(_position),
+              type(_type) {};
+
+        std::string MessageToString() const override
+        {
+            return "Condidion should be of type BOOL but found: " + type.ToString();
+        };
+    };
+
+    class UndefinedVariable : public BasicPosinionalError
+    {
+        std::string name;
+    public:
+        UndefinedVariable(Position _position, std::string _name)
+            : BasicPosinionalError(_position), name(_name) {};
+
+        std::string MessageToString() const override
+        {
+            return "Undefined variable '" + name + "'";
+        };
+    };
+
+    class InvalidLiteralType : public BasicPosinionalError
+    {
+    public:
+        InvalidLiteralType(Position _position)
+            : BasicPosinionalError(_position){};
+
+        std::string MessageToString() const override
+        {
+            return "Invalid Literal Type";
+        };
+    };
+
+    class InvalidMemoryAddress : public BasicPosinionalError
+    {
+    public:
+        InvalidMemoryAddress(Position _position)
+            : BasicPosinionalError(_position){};
+
+        std::string MessageToString() const override
+        {
+            return "Invalid memory address";
+        };
+    };
+
 
     //*****************************************************************************************************
     // Cannot Read/write File

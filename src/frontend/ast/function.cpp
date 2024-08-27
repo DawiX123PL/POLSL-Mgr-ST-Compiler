@@ -135,14 +135,14 @@ namespace AST
 
     static void VerifyFunction(llvm::Function *function)
     {
+
         std::string code_err;
         llvm::raw_string_ostream ostream(code_err);
         llvm::verifyFunction(*function, &ostream);
 
         if (code_err.size())
         {
-            std::cout << "\n"
-                      << Console::FgBrightRed(code_err) << "\n";
+            ErrorManager::Create(Error::InternalCompilerError(code_err));
         }
     }
 
@@ -226,7 +226,7 @@ namespace AST
         return function;
     }
 
-    llvm::Function *Function::LLVMBuildBody(AST::PouList* gs, LLVMCompilerContext *llvm_cc)
+    llvm::Function *Function::LLVMBuildBody(AST::PouList *gs, LLVMCompilerContext *llvm_cc)
     {
         llvm::Function *function = LLVMGetDeclaration(llvm_cc);
 
@@ -238,7 +238,7 @@ namespace AST
         // allocate and init local variables
         LocalScope ls;
         ls.global_scope = gs;
-        
+
         llvm::Function::arg_iterator argument = function->arg_begin();
         llvm_cc->global_mem_ptr = argument;
         llvm_cc->local_variables.clear();
@@ -276,7 +276,14 @@ namespace AST
 
         for (auto &s : statement_list)
         {
-            s->CodeGenLLVM(&ls, llvm_cc);
+            try
+            {
+                if (s)
+                    s->CodeGenLLVM(&ls, llvm_cc);
+            }
+            catch (...)
+            { /*ignore*/
+            }
         }
 
         // FIXME: generate return sequence
@@ -328,20 +335,17 @@ namespace AST
         return function;
     }
 
-    void Function::LLVMGenerateDeclaration(AST::PouList* gs, LLVMCompilerContext *llvm_cc)
+    void Function::LLVMGenerateDeclaration(AST::PouList *gs, LLVMCompilerContext *llvm_cc)
     {
         (void)LLVMGetDeclaration(llvm_cc); // oncy generate declaration if needed
     }
 
-    void Function::LLVMGenerateDefinition(AST::PouList* gs, LLVMCompilerContext *llvm_cc)
+    void Function::LLVMGenerateDefinition(AST::PouList *gs, LLVMCompilerContext *llvm_cc)
     {
         if (!is_extern)
         {
             (void)LLVMBuildBody(gs, llvm_cc);
         }
     }
-
-
-    
 
 }
