@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(st_compiler)
+project(st_frontend)
 
 #***************************************************************************************************************
 # source files 
@@ -52,16 +52,21 @@ set(SENDER_SOURCES
     "src/sender/main.cpp"
 )
 
+set(DRIVER_SOURCES
+    "src/driver/main.cpp"
+)
 
 
 #***************************************************************************************************************
 # executable file
-add_executable(st_compiler ${FRONTEND_SOURCES})
+add_executable(stlang ${DRIVER_SOURCES})
+add_executable(st_frontend ${FRONTEND_SOURCES})
 add_executable(interpreter ${INTERPRETER_SOURCES})
 add_executable(packager ${PACKAGER_SOURCES})
 add_executable(sender ${SENDER_SOURCES})
 
-target_include_directories(st_compiler PUBLIC "src")
+target_include_directories(stlang PUBLIC "src")
+target_include_directories(st_frontend PUBLIC "src")
 target_include_directories(interpreter PUBLIC "src")
 target_include_directories(packager PUBLIC "src")
 target_include_directories(sender PUBLIC "src")
@@ -83,7 +88,7 @@ add_definitions(${LLVM_DEFINITIONS_LIST})
 
 llvm_map_components_to_libnames(
 # libraries object
-    st_compiler_llvm_libraries  
+    st_frontend_llvm_libraries  
 
 # required libraries
     # support 
@@ -121,12 +126,16 @@ llvm_map_components_to_libnames(
 )
 
 
-target_link_libraries(st_compiler ${st_compiler_llvm_libraries})
+target_link_libraries(st_frontend ${st_frontend_llvm_libraries})
 target_link_libraries(interpreter ${interpreter_llvm_libraries})
 
-set_property(TARGET st_compiler PROPERTY CXX_STANDARD 17)
-set_property(TARGET st_compiler PROPERTY CXX_STANDARD_REQUIRED ON)
-set_property(TARGET st_compiler PROPERTY CMAKE_CXX_EXTENSIONS Off)
+set_property(TARGET stlang PROPERTY CXX_STANDARD 17)
+set_property(TARGET stlang PROPERTY CXX_STANDARD_REQUIRED ON)
+set_property(TARGET stlang PROPERTY CMAKE_CXX_EXTENSIONS Off)
+
+set_property(TARGET st_frontend PROPERTY CXX_STANDARD 17)
+set_property(TARGET st_frontend PROPERTY CXX_STANDARD_REQUIRED ON)
+set_property(TARGET st_frontend PROPERTY CMAKE_CXX_EXTENSIONS Off)
 
 set_property(TARGET interpreter PROPERTY CXX_STANDARD 17)
 set_property(TARGET interpreter PROPERTY CXX_STANDARD_REQUIRED ON)
@@ -141,7 +150,8 @@ set_property(TARGET sender PROPERTY CXX_STANDARD_REQUIRED ON)
 set_property(TARGET sender PROPERTY CMAKE_CXX_EXTENSIONS Off)
 
 if ( MSVC )
-    target_compile_options(st_compiler PRIVATE /MDd  /JMC)
+    target_compile_options(stlang PRIVATE /MDd  /JMC)
+    target_compile_options(st_frontend PRIVATE /MDd  /JMC)
     target_compile_options(interpreter PRIVATE /MDd  /JMC)
     target_compile_options(packager PRIVATE /MDd  /JMC)
     target_compile_options(sender PRIVATE /MDd  /JMC)
@@ -159,7 +169,8 @@ find_package(Boost)
 
 if(Boost_FOUND)
     include_directories(${Boost_INCLUDE_DIRS})
-    target_compile_options(st_compiler PUBLIC -DBOOST_ALL_NO_LIB)
+    target_compile_options(stlang PUBLIC -DBOOST_ALL_NO_LIB)
+    target_compile_options(st_frontend PUBLIC -DBOOST_ALL_NO_LIB)
     target_compile_options(interpreter PUBLIC -DBOOST_ALL_NO_LIB)
     target_compile_options(packager PUBLIC -DBOOST_ALL_NO_LIB)
     target_compile_options(sender PUBLIC -DBOOST_ALL_NO_LIB)
@@ -171,6 +182,10 @@ endif()
 #***************************************************************************************************************
 # Copy GCC object files to build directory
 file(COPY "${PROJECT_SOURCE_DIR}/arm-none-eabi-gcc_libs/lib" DESTINATION "${CMAKE_BINARY_DIR}/build")
+
+#***************************************************************************************************************
+# Copy default ld script to build directory
+file(COPY "${PROJECT_SOURCE_DIR}/default_ld_script/ld" DESTINATION "${CMAKE_BINARY_DIR}/build")
 
 #***************************************************************************************************************
 # produce stl files
@@ -193,7 +208,7 @@ endif()
 
 #***************************************************************************************************************
 # change default out dir
-set_target_properties( st_compiler interpreter packager sender
+set_target_properties( st_frontend stlang interpreter packager sender
     PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/build/bin"
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/build/bin"
@@ -201,7 +216,7 @@ set_target_properties( st_compiler interpreter packager sender
 )
 
 
-# target_compile_options(st_compiler PUBLIC "-Wunused-result" "-Wall")
+# target_compile_options(st_frontend PUBLIC "-Wunused-result" "-Wall")
 
 
 # trick from https://stackoverflow.com/questions/7747857/in-cmake-how-do-i-work-around-the-debug-and-release-directories-visual-studio-2
@@ -209,7 +224,7 @@ set_target_properties( st_compiler interpreter packager sender
 if ( MSVC )
 
 
-	set_target_properties( st_compiler interpreter packager sender
+	set_target_properties( st_frontend stlang interpreter packager sender
 		PROPERTIES
 		ARCHIVE_OUTPUT_DIRECTORY           "${CMAKE_BINARY_DIR}/build/bin"
 		ARCHIVE_OUTPUT_DIRECTORY_DEBUG     "${CMAKE_BINARY_DIR}/build/bin"
@@ -231,9 +246,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
 # surpress compiler warning LNK4099 - "PDB '' was not found with ..."
 
 if ( MSVC )
-    target_compile_options(st_compiler PRIVATE /wd4624)
+    target_compile_options(st_frontend PRIVATE /wd4624)
     target_compile_options(interpreter PRIVATE /wd4624)
-    set_target_properties(st_compiler PROPERTIES LINK_FLAGS "/ignore:4099")
+    set_target_properties(st_frontend PROPERTIES LINK_FLAGS "/ignore:4099")
     set_target_properties(interpreter PROPERTIES LINK_FLAGS "/ignore:4099")
 endif ( MSVC )
 

@@ -13,6 +13,8 @@ template <class CommandLineFlags>
 class CommandLineParser
 {
 
+    std::string self_path;
+
     // command line arguments not related to any flag
     std::vector<std::string> files;
 
@@ -64,6 +66,7 @@ public:
 
         this_executable_path = args_vec.front();
 
+        self_path = args_vec.size() > 0 ? args_vec[0] : "";
         int cmd_str_number = 1;
         for (/*nope*/; cmd_str_number < args_vec.size(); cmd_str_number++)
         {
@@ -159,5 +162,10 @@ public:
     std::vector<std::string> GetFiles()
     {
         return files;
+    }
+
+    std::string GetSelfPath()
+    {
+        return self_path;
     }
 };

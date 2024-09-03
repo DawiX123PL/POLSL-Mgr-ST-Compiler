@@ -293,13 +293,13 @@ namespace AST
         void LLVMGenerateDeclaration(AST::PouList *gs, LLVMCompilerContext *llvm_cc) override;
         void LLVMGenerateDefinition(AST::PouList *gs, LLVMCompilerContext *llvm_cc) override;
 
+        llvm::Function *LLVMGetInitDeclaration(LLVMCompilerContext *llvm_cc);
+        llvm::Function *LLVMGetBodyDeclaration(LLVMCompilerContext *llvm_cc);
+        llvm::StructType *LLVMGetStructType(LLVMCompilerContext *llvm_cc);
     private:
         llvm::FunctionType *GetFunctionType(LLVMCompilerContext *llvm_cc);
         llvm::Function *LLVMCreateInitDeclaration(LLVMCompilerContext *llvm_cc);
         llvm::Function *LLVMCreateBodyDeclaration(LLVMCompilerContext *llvm_cc);
-        llvm::Function *LLVMGetInitDeclaration(LLVMCompilerContext *llvm_cc);
-        llvm::Function *LLVMGetBodyDeclaration(LLVMCompilerContext *llvm_cc);
-        llvm::StructType *LLVMGetStructType(LLVMCompilerContext *llvm_cc);
         void LLVMCreateInit(AST::PouList *gs, LLVMCompilerContext *llvm_cc);
         void LLVMCreateBody(AST::PouList *gs, LLVMCompilerContext *llvm_cc);
     };

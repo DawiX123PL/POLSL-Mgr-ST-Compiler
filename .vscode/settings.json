@@ -115,16 +115,22 @@
     "cmake.configureOnOpen": false,
     "C_Cpp.markdownInComments": "enabled",
     "cmake.debugConfig": {
-        "cwd": "${workspaceFolder}/driver",
-        "args": [
-            "..\\test\\test1\\test_func.st",
-            "..\\test\\test1\\fahrenheit_to_celsius.st",
-            "--verbose",
-            "--output-c-header",
-            "..\\test\\test1\\__file.h",
-            "-o",
-            "..\\test\\test1\\__file.ll",
-        ],
+        // "cwd": "${workspaceFolder}/driver",
+        // "args": [
+        //     "..\\test\\test1\\test_func.st",
+        //     "..\\test\\test1\\fahrenheit_to_celsius.st",
+        //     "--verbose",
+        //     "--output-c-header",
+        //     "..\\test\\test1\\__file.h",
+        //     "-o",
+        //     "..\\test\\test1\\__file.ll",
+        //     "..\\build\\build\\stl\\conv.st_extern",
+        //     "--emit_ll_with_errors"
+        // ],
+
+        "cwd": "${workspaceFolder}/benchmark/empty",
+        "args": ["empty.st", "-o", "empty.package"]
+        
         // "args": [
         //     "-modules",
         //     "plc_modules.modules",

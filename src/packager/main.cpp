@@ -168,7 +168,7 @@ int main(int argc, const char *argv[])
     std::string input_executable_path = cli.GetFlagArgs(CommandLineFlags::INPUT_EXECUTABLE)[0];
     std::string output_package_path = "./output.package";
 
-    if (!cli.IsFlagUsed(CommandLineFlags::OUTPUT_FILE))
+    if (cli.IsFlagUsed(CommandLineFlags::OUTPUT_FILE))
     {
         if (cli.GetFlagArgs(CommandLineFlags::OUTPUT_FILE).size() >= 1)
         {

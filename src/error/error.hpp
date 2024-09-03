@@ -365,6 +365,7 @@ namespace Error
     class UndefinedVariable : public BasicPosinionalError
     {
         std::string name;
+
     public:
         UndefinedVariable(Position _position, std::string _name)
             : BasicPosinionalError(_position), name(_name) {};
@@ -379,7 +380,7 @@ namespace Error
     {
     public:
         InvalidLiteralType(Position _position)
-            : BasicPosinionalError(_position){};
+            : BasicPosinionalError(_position) {};
 
         std::string MessageToString() const override
         {
@@ -391,14 +392,13 @@ namespace Error
     {
     public:
         InvalidMemoryAddress(Position _position)
-            : BasicPosinionalError(_position){};
+            : BasicPosinionalError(_position) {};
 
         std::string MessageToString() const override
         {
             return "Invalid memory address";
         };
     };
-
 
     //*****************************************************************************************************
     // Cannot Read/write File
@@ -444,6 +444,34 @@ namespace Error
         std::string MessageToString() const override
         {
             return "No Input Files";
+        };
+    };
+
+    //========================================
+
+    class CannotFindEntryPoint : public BasicError
+    {
+        std::string entry_name;
+
+    public:
+        CannotFindEntryPoint(std::string _entry_name): entry_name(_entry_name) {};
+
+        std::string MessageToString() const override
+        {
+            return "Cannot find entry point \"" + entry_name + "\"";
+        };
+    };
+
+    class EntryPointMustBeProgram : public BasicError
+    {
+        std::string entry_name;
+
+    public:
+        EntryPointMustBeProgram(std::string _entry_name): entry_name(_entry_name) {};
+
+        std::string MessageToString() const override
+        {
+            return "Entry point \"" + entry_name + "\" must be PROGRAM";
         };
     };
 

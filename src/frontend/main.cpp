@@ -24,6 +24,7 @@ enum class CommandLineFlags : unsigned int
     OUTPUT_C_HEADER,
     TARGET_TRIPLE,
     EMIT_LL_WITH_ERRORS,
+    ENTRY_POINT,
 };
 
 void RegisterCommands(CommandLineParser<CommandLineFlags> *command_line)
@@ -34,6 +35,7 @@ void RegisterCommands(CommandLineParser<CommandLineFlags> *command_line)
     command_line->RegisterFlag(CommandLineFlags::OUTPUT_C_HEADER, 1, {"--output-c-header"});
     command_line->RegisterFlag(CommandLineFlags::TARGET_TRIPLE, 1, {"-target"});
     command_line->RegisterFlag(CommandLineFlags::EMIT_LL_WITH_ERRORS, 0, {"--emit_ll_with_errors"});
+    command_line->RegisterFlag(CommandLineFlags::ENTRY_POINT, 1, {"--entry_point"});
 }
 
 CommandLineParser<CommandLineFlags> ParseCommandLine(int argc, char const *argv[])
@@ -55,23 +57,14 @@ llvm::Constant *LLVMSizeof(AST::LLVMCompilerContext *llvm_cc, llvm::Type *type)
     return const_val;
 }
 
-void CreateProgramDescription(AST::LLVMCompilerContext *llvm_cc)
+void CreateProgramDescription(AST::LLVMCompilerContext *llvm_cc, AST::Program *entry_program)
 {
     // setup pointer to main program (structure containing pointer to main and other usefull data)
+    assert(entry_program);
 
-    std::string program_name = "main";
-    llvm::Function *program = llvm_cc->module->getFunction(program_name);
-    llvm::Function *program_init = llvm_cc->module->getFunction(program_name + ".init");
-    llvm::StructType *program_struct = nullptr;
-    {
-        for (llvm::StructType *prog_struct : llvm_cc->module->getIdentifiedStructTypes())
-        {
-            if (prog_struct->hasName() && prog_struct->getName() == program_name + ".struct")
-            {
-                program_struct = prog_struct;
-            }
-        }
-    }
+    llvm::Function *program = entry_program->LLVMGetBodyDeclaration(llvm_cc);
+    llvm::Function *program_init = entry_program->LLVMGetInitDeclaration(llvm_cc);
+    llvm::StructType *program_struct = entry_program->LLVMGetStructType(llvm_cc);
 
     assert(program != nullptr && program_init != nullptr && program_struct != nullptr);
 
@@ -135,7 +128,7 @@ void CreateProgramDescription(AST::LLVMCompilerContext *llvm_cc)
 //     dest.flush();
 // }
 
-static void VerifyFunction(llvm::Module *module)
+static void VerifyModule(llvm::Module *module)
 {
     std::string code_err;
     llvm::raw_string_ostream ostream(code_err);
@@ -145,6 +138,22 @@ static void VerifyFunction(llvm::Module *module)
     {
         ErrorManager::Create(Error::InternalCompilerError(code_err));
     }
+}
+
+AST::PouPtr FindPouWithNameWithName(std::string name, const AST::PouList &pou_list)
+{
+    for (AST::PouPtr pou : pou_list)
+    {
+        if (pou)
+        {
+            if (pou->name == name)
+            {
+                return pou;
+            }
+        }
+    }
+
+    return nullptr;
 }
 
 int main(int argc, char const *argv[])
@@ -236,18 +245,44 @@ int main(int argc, char const *argv[])
         pou->LLVMGenerateDefinition(&pou_list, &llvm_cc);
     }
 
-    CreateProgramDescription(&llvm_cc);
+    // find entry point
+
+    std::string entry_point_name = "main";
+    
+    if (command_line.IsFlagUsed(CommandLineFlags::ENTRY_POINT))
+    {
+        if (command_line.GetFlagArgs(CommandLineFlags::ENTRY_POINT).size() >= 1)
+        {
+            entry_point_name = command_line.GetFlagArgs(CommandLineFlags::ENTRY_POINT)[0];
+        }
+    }
+    
+    if (AST::PouPtr pou = FindPouWithNameWithName(entry_point_name, pou_list))
+    {
+        if (AST::Program *entry_prog = dynamic_cast<AST::Program *>(pou.get()))
+        {
+            CreateProgramDescription(&llvm_cc, entry_prog);
+        }
+        else
+        {
+            ErrorManager::Create(Error::EntryPointMustBeProgram(entry_point_name));
+        }
+    }
+    else
+    {
+        ErrorManager::Create(Error::CannotFindEntryPoint(entry_point_name));
+    }
 
     // Error::PrintErrors();
 
     // verify module
-    VerifyFunction(llvm_cc.module.get());
+    VerifyModule(llvm_cc.module.get());
 
     if (ErrorManager::Count())
     {
         if (command_line.IsFlagUsed(CommandLineFlags::EMIT_LL_WITH_ERRORS))
         {
-            std::cout << Console::FgBrightYellow("[WARNING]") + " Emiting llvm ir code regardless of errors (used --emit_ll_with_errors)\n" ;
+            std::cout << Console::FgBrightYellow("[WARNING]") + " Emiting llvm ir code regardless of errors (used --emit_ll_with_errors)\n";
         }
         else
         {
