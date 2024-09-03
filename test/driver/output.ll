@@ -1,65 +1,77 @@
 ; ModuleID = 'my ST compiler'
 source_filename = "my ST compiler"
-target datalayout = "e-m:w-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128"
-target triple = "x86_64-pc-windows-msvc"
+target datalayout = "e-m:e-p:32:32-Fi8-i64:64-v128:64:128-a:0:32-n32-S64"
+target triple = "thumbv7em-none-unknown-eabi"
 
 %main.struct = type <{ i1, double, float, i16, i1 }>
 
 @"@ModuleDescription" = constant <{ ptr, ptr, i32 }> <{ ptr @main, ptr @main.init, i32 16 }>, section "main.symbol_table"
 
-define i1 @test_func(ptr %0, i16 %1, ptr %2, ptr %3) {
+define i1 @test_func(ptr %0, i16 %1, i16 %2, i16 %3, ptr %4, ptr %5) {
 entry:
   %test_func.alloca = alloca i1, align 1
   %c.alloca = alloca i16, align 2
   %x.alloca = alloca i16, align 2
   %b1.alloca = alloca float, align 4
   %c1.alloca = alloca i16, align 2
-  store i16 %1, ptr %c1.alloca, align 2
-  %4 = icmp eq ptr %2, null
-  br i1 %4, label %if_pointer_null, label %if_pointer_not_null
+  %b.alloca = alloca i16, align 2
+  %aaa.alloca = alloca i16, align 2
+  store i16 %1, ptr %aaa.alloca, align 2
+  store i16 %2, ptr %b.alloca, align 2
+  store i16 %3, ptr %c1.alloca, align 2
+  %6 = icmp eq ptr %4, null
+  br i1 %6, label %if_pointer_null, label %if_pointer_not_null
 
 if_pointer_null:                                  ; preds = %entry
   br label %if_merge
 
 if_pointer_not_null:                              ; preds = %entry
-  %5 = load float, ptr %2, align 4
+  %7 = load float, ptr %4, align 4
   br label %if_merge
 
 if_merge:                                         ; preds = %if_pointer_not_null, %if_pointer_null
-  %in_out_value = phi float [ %5, %if_pointer_not_null ], [ 0.000000e+00, %if_pointer_null ]
+  %in_out_value = phi float [ %7, %if_pointer_not_null ], [ 0.000000e+00, %if_pointer_null ]
   store float %in_out_value, ptr %b1.alloca, align 4
   store i16 0, ptr %x.alloca, align 2
   store i16 -100, ptr %c.alloca, align 2
   store i1 false, ptr %test_func.alloca, align 1
   br label %while_condition
 
-while_condition:                                  ; preds = %if_merge
+while_condition:                                  ; preds = %while_do, %if_merge
   %c = load i16, ptr %c.alloca, align 2
-  %6 = add i16 %c, -1
-  %7 = icmp sgt i16 %6, -1
-  br i1 %7, label %while_do, label %end_while
+  %8 = add i16 %c, -1
+  %9 = icmp sgt i16 %8, -1
+  br i1 %9, label %while_do, label %end_while
 
 while_do:                                         ; preds = %while_condition
-  br label %return_block
+  %aaa = load i16, ptr %aaa.alloca, align 2
+  %10 = sub i16 0, %aaa
+  %b = load i16, ptr %b.alloca, align 2
+  %11 = add i16 %10, %b
+  %c1 = load i16, ptr %c1.alloca, align 2
+  %12 = add i16 %11, %c1
+  store i16 %12, ptr %x.alloca, align 2
+  br label %while_condition
 
 end_while:                                        ; preds = %while_condition
+  br label %return_block
 
-return_block:                                     ; preds = %while_do
-  %is_not_null = icmp ne ptr %2, null
+return_block:                                     ; preds = %end_while
+  %is_not_null = icmp ne ptr %4, null
   br i1 %is_not_null, label %if_pointer_notnull, label %if_merge1
 
 if_pointer_notnull:                               ; preds = %return_block
-  %8 = load float, ptr %b1.alloca, align 4
-  store float %8, ptr %2, align 4
+  %13 = load float, ptr %b1.alloca, align 4
+  store float %13, ptr %4, align 4
   br label %if_merge1
 
 if_merge1:                                        ; preds = %if_pointer_notnull, %return_block
-  %is_not_null4 = icmp ne ptr %3, null
+  %is_not_null4 = icmp ne ptr %5, null
   br i1 %is_not_null4, label %if_pointer_notnull2, label %if_merge3
 
 if_pointer_notnull2:                              ; preds = %if_merge1
-  %9 = load i16, ptr %x.alloca, align 2
-  store i16 %9, ptr %3, align 2
+  %14 = load i16, ptr %x.alloca, align 2
+  store i16 %14, ptr %5, align 2
   br label %if_merge3
 
 if_merge3:                                        ; preds = %if_pointer_notnull2, %if_merge1
@@ -73,6 +85,10 @@ entry:
   %f.alloca = alloca double, align 8
   store double %1, ptr %f.alloca, align 8
   store double 0.000000e+00, ptr %fahrenheit_to_celsius.alloca, align 8
+  %f = load double, ptr %f.alloca, align 8
+  %2 = fsub double %f, 3.200000e+01
+  %3 = fdiv double %2, 1.800000e+00
+  store double %3, ptr %fahrenheit_to_celsius.alloca, align 8
   br label %return_block
 
 return_block:                                     ; preds = %entry

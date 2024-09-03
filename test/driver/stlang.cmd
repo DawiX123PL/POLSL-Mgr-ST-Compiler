@@ -21,7 +21,7 @@ set "libs=-lgcc -lc -lnosys"
 set "DEADCODESTRIP=-fdata-sections -ffunction-sections -Wl,--gc-sections"
 
 :: compile ST code to IR file 
-"../build/build/bin/st_compiler" -target %triple% %st_input_files% -o output.ll
+"../build/build/bin/st_frontend" -target %triple% %st_input_files% -o output.ll
 
 :: optionaly optimize code
 opt output.ll -S -o output_no_opt.ll
