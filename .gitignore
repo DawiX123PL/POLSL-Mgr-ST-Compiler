@@ -24,20 +24,20 @@
 /cmake_install.cmake
 
 ############################################################################################################
-##                                     driver folder
+##                                     test folder
 ############################################################################################################
 
-/driver/*.bin
-/driver/*.elf
-/driver/*.o
-/driver/*.package
+/test/driver/*.bin
+/test/driver/*.elf
+/test/driver/*.o
+/test/driver/*.package
 
 ############################################################################################################
 ##                                     benchmarks folder
 ############################################################################################################
 
-/benchmark/*.bin
-/benchmark/*.elf
-/benchmark/*.ll
-/benchmark/*.package
+/benchmark/*/build/*.bin
+/benchmark/*/build/*.elf
+/benchmark/*/build/*.ll
+/benchmark/*/build/*.package
 
