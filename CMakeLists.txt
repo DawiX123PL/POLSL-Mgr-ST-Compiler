@@ -47,11 +47,23 @@ set(PACKAGER_SOURCES
 )
 
 set(SENDER_SOURCES
-    "src/sender/data_frame/data_frame.cpp"
-    "src/sender/data_frame/data_frame.hpp"
+    "src/data_frame/data_frame.cpp"
+    "src/data_frame/data_frame.hpp"
     "src/sender/main.cpp"
 )
 
+set(PLC_CONN_SOURCES
+    "src/data_frame/data_frame.cpp"
+    "src/data_frame/data_frame.hpp"   
+    "src/plc_conn/file_utils.cpp"
+    "src/plc_conn/file_utils.hpp"
+    "src/plc_conn/tcp_utils.cpp"
+    "src/plc_conn/tcp_utils.hpp"
+    "src/plc_conn/main.cpp"
+    "src/console/color.cpp"
+    "src/console/color.hpp"
+)
+    
 set(DRIVER_SOURCES
     "src/driver/main.cpp"
 )
@@ -64,6 +76,7 @@ add_executable(st_frontend ${FRONTEND_SOURCES})
 add_executable(interpreter ${INTERPRETER_SOURCES})
 add_executable(packager ${PACKAGER_SOURCES})
 add_executable(sender ${SENDER_SOURCES})
+add_executable(plc_conn ${PLC_CONN_SOURCES})
 
 add_dependencies(stlang st_frontend packager sender)
 
@@ -72,6 +85,7 @@ target_include_directories(st_frontend PUBLIC "src")
 target_include_directories(interpreter PUBLIC "src")
 target_include_directories(packager PUBLIC "src")
 target_include_directories(sender PUBLIC "src")
+target_include_directories(plc_conn PUBLIC "src")
 
 #***************************************************************************************************************
 # include llvm headers
@@ -151,12 +165,17 @@ set_property(TARGET sender PROPERTY CXX_STANDARD 17)
 set_property(TARGET sender PROPERTY CXX_STANDARD_REQUIRED ON)
 set_property(TARGET sender PROPERTY CMAKE_CXX_EXTENSIONS Off)
 
+set_property(TARGET plc_conn PROPERTY CXX_STANDARD 17)
+set_property(TARGET plc_conn PROPERTY CXX_STANDARD_REQUIRED ON)
+set_property(TARGET plc_conn PROPERTY CMAKE_CXX_EXTENSIONS Off)
+
 if ( MSVC )
     target_compile_options(stlang PRIVATE /MDd  /JMC)
     target_compile_options(st_frontend PRIVATE /MDd  /JMC)
     target_compile_options(interpreter PRIVATE /MDd  /JMC)
     target_compile_options(packager PRIVATE /MDd  /JMC)
     target_compile_options(sender PRIVATE /MDd  /JMC)
+    target_compile_options(plc_conn PRIVATE /MDd  /JMC)
 endif ( MSVC )
 
 #***************************************************************************************************************
@@ -176,6 +195,7 @@ if(Boost_FOUND)
     target_compile_options(interpreter PUBLIC -DBOOST_ALL_NO_LIB)
     target_compile_options(packager PUBLIC -DBOOST_ALL_NO_LIB)
     target_compile_options(sender PUBLIC -DBOOST_ALL_NO_LIB)
+    target_compile_options(plc_conn PUBLIC -DBOOST_ALL_NO_LIB)
 else()
     message(FATAL_ERROR "Could not find Boost libraries")
 endif()
@@ -226,7 +246,7 @@ set_target_properties( st_frontend stlang interpreter packager sender
 if ( MSVC )
 
 
-	set_target_properties( st_frontend stlang interpreter packager sender
+	set_target_properties( st_frontend stlang interpreter packager sender plc_conn
 		PROPERTIES
 		ARCHIVE_OUTPUT_DIRECTORY           "${CMAKE_BINARY_DIR}/build/bin"
 		ARCHIVE_OUTPUT_DIRECTORY_DEBUG     "${CMAKE_BINARY_DIR}/build/bin"

@@ -55,6 +55,50 @@ private:
 public:
     DataFrame() : buffer_size(0), datablock_size(0) {};
 
+    DataFrame(const DataFrame &that)
+    {
+        // body_containing_logic
+        std::memcpy(buffer, that.buffer, that.buffer_size);
+        buffer_size = that.buffer_size;
+
+        for (int i = 0; i < datablocks_capacity; i++)
+        {
+            std::string_view str = that.datablocks[i].str;
+            if (str.data() == nullptr)
+            {
+                datablocks[i].str = str;
+            }
+            else
+            {
+                ptrdiff_t relative_ptr = str.data() - that.buffer;
+                datablocks[i].str = std::string_view(buffer + relative_ptr, str.size());
+            }
+        }
+        datablock_size = that.datablock_size;
+    }
+
+    DataFrame(const DataFrame &&that)
+    {
+        // body_containing_logic
+        std::memcpy(buffer, that.buffer, that.buffer_size);
+        buffer_size = that.buffer_size;
+
+        for (int i = 0; i < datablocks_capacity; i++)
+        {
+            std::string_view str = that.datablocks[i].str;
+            if (str.data() == nullptr)
+            {
+                datablocks[i].str = str;
+            }
+            else
+            {
+                ptrdiff_t relative_ptr = str.data() - that.buffer;
+                datablocks[i].str = std::string_view(buffer + relative_ptr, str.size());
+            }
+        }
+        datablock_size = that.datablock_size;
+    }
+
     // return -1 in case of error
     bool Parse();
     const Data &operator[](uint32_t index) const;
@@ -79,7 +123,7 @@ public:
         else
         {
             separator_ptr = &buffer[buffer_size - 1]; // this must be later changed to ';'
-            begin = separator_ptr + 1; // byte after separator
+            begin = separator_ptr + 1;                // byte after separator
         }
 
         char *buffer_end = &buffer[buffer_capacity - 1];
@@ -131,11 +175,11 @@ public:
 
     //************
     void BufferClear();
-    bool BufferFull();
-    bool BufferEmpty();
-    uint32_t BufferSize();
+    bool BufferFull() const;
+    bool BufferEmpty() const;
+    uint32_t BufferSize() const;
     bool BufferPush(char c);
-    std::string_view BufferGet();
+    std::string_view BufferGet() const;
 };
 
 //**********************************************************************

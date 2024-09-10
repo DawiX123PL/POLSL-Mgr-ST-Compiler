@@ -129,8 +129,9 @@
         // ],
 
         "cwd": "${workspaceFolder}/benchmark/delay",
-        "args": ["delay.st", "-o", "delay.package"]
+        "args": ["--address", "192.168.0.150", "--port", "2000", "--upload", "--start", "--stop", "build\\delay.package",  "--performance"]
         
+
         // "args": [
         //     "-modules",
         //     "plc_modules.modules",

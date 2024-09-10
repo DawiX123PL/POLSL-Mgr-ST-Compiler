@@ -57,15 +57,15 @@ void DataFrame::BufferClear()
 {
     buffer_size = 0;
 }
-uint32_t DataFrame::BufferSize()
+uint32_t DataFrame::BufferSize() const
 {
     return buffer_size;
 }
-bool DataFrame::BufferFull()
+bool DataFrame::BufferFull() const
 {
     return buffer_size == buffer_capacity;
 }
-bool DataFrame::BufferEmpty()
+bool DataFrame::BufferEmpty() const
 {
     return buffer_size == 0;
 }
@@ -82,7 +82,7 @@ bool DataFrame::BufferPush(char c)
     return true;
 }
 
-std::string_view DataFrame::BufferGet()
+std::string_view DataFrame::BufferGet() const
 {
     return std::string_view(buffer, buffer_size);
 }
@@ -247,12 +247,12 @@ bool DataFrame::PushHex(const uint8_t *const array, uint32_t array_size)
     if (available_space < needed_space)
         return false;
 
-    if(datablock_size >= datablocks_capacity)
+    if (datablock_size >= datablocks_capacity)
         return false;
 
     buffer[buffer_size - 1] = ';';
 
-    char* begin = &buffer[buffer_size];
+    char *begin = &buffer[buffer_size];
 
     for (uint32_t i = 0; i < array_size; i++)
     {
@@ -261,10 +261,9 @@ bool DataFrame::PushHex(const uint8_t *const array, uint32_t array_size)
         BufferPush(chars.second);
     }
 
-    datablocks[datablock_size++].str = std::string_view(begin, array_size * 2); 
+    datablocks[datablock_size++].str = std::string_view(begin, array_size * 2);
 
     BufferPush('\n');
-
 
     return true;
 }
