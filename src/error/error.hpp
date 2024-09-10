@@ -155,6 +155,20 @@ namespace Error
         };
     };
 
+    class MixingFormalAndNonformal : public BasicPosinionalError
+    {
+
+        Lexer::TokenType keyword;
+
+    public:
+        MixingFormalAndNonformal(Position _position) : BasicPosinionalError(_position) {};
+
+        std::string MessageToString() const override
+        {
+            return std::string("Mixing formal and non-formal arguments are not allowed");
+        };
+    };
+
     //*****************************************************************************************************
     // Invalid Data Type
 

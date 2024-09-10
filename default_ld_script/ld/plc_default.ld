@@ -123,4 +123,12 @@ SECTIONS
         _edata = .;        /* define a global symbol at data end */
 
     }
+
+    /* Remove information from the compiler libraries */
+    /DISCARD/ :
+    {
+        libc.a ( * )
+        libm.a ( * )
+        libgcc.a ( * )
+    }
 }

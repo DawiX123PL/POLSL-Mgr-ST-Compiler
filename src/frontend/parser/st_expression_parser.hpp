@@ -295,63 +295,187 @@ namespace StParser::Expression
         // /*formal:*/                 LIMIT(IN := B, MN := 0, MX := 0)
         //                             LIMIT(IN => B, MN => 0, MX := 0)
         // ```
-        void ParseArgumentList(
+        // void ParseArgumentList(
+        //     std::vector<AST::ExprPtr> *non_formal_args,
+        //     std::vector<std::pair<AST::ExprPtr, AST::ExprPtr>> *formal_input_args,
+        //     std::vector<std::pair<AST::ExprPtr, AST::ExprPtr>> *formal_output_args)
+        // {
+        //     bool is_formal = false;
+        //     bool is_non_formal = false;
+
+        //     while (true)
+        //     {
+        //         AST::ExprPtr expr = ParseExpression();
+        //         non_formal_args->push_back(expr);
+
+        //         if (!is_formal && IsNextToken(Lexer::TokenType::COLON))
+        //         {
+        //             PopToken();
+        //             is_non_formal = true;
+        //             continue;
+        //         }
+
+        //         if (!is_non_formal && IsNextToken(Lexer::TokenType::ASSIGN))
+        //         {
+        //             PopToken();
+        //             is_formal = true;
+
+        //             AST::ExprPtr right_expr = ParseExpression();
+        //             formal_input_args->emplace_back(expr, right_expr);
+        //         }
+        //         else if (!is_non_formal && IsNextToken(Lexer::TokenType::RIGHT_ASSIGN))
+        //         {
+        //             PopToken();
+        //             is_formal = true;
+
+        //             AST::ExprPtr right_expr = ParseExpression();
+        //             formal_output_args->emplace_back(expr, right_expr);
+        //         }
+
+        //         if (IsNextToken(Lexer::TokenType::COLON))
+        //         {
+        //             PopToken();
+        //             continue;
+        //         }
+
+        //         break;
+        //     }
+
+        //     if (is_formal)
+        //     {
+        //         non_formal_args->clear();
+        //     }
+        //     if (is_non_formal)
+        //     {
+        //         formal_input_args->clear();
+        //         formal_output_args->clear();
+        //     }
+        // }
+
+        enum class CallArgumentType
+        {
+            NONFORMAL,    // expr1
+            LEFT_ASSIGN,  // expr1 := expr2
+            RIGHT_ASSIGN, // expr1 => expr2
+        };
+
+        // `expr1`
+        // `expr1 := expr2`
+        // `expr1 => expr2`
+        [[nodiscard]] CallArgumentType ParseArgument(AST::ExprPtr *expr1, AST::ExprPtr *expr2)
+        {
+            assert(expr1 || expr2);
+
+            AST::ExprPtr e1 = ParseExpression();
+
+            if (IsNextToken(Lexer::TokenType::ASSIGN))
+            {
+                PopToken();
+                AST::ExprPtr e2 = ParseExpression();
+                *expr1 = e1;
+                *expr2 = e2;
+                return CallArgumentType::LEFT_ASSIGN;
+            }
+
+            if (IsNextToken(Lexer::TokenType::RIGHT_ASSIGN))
+            {
+                PopToken();
+                AST::ExprPtr e2 = ParseExpression();
+                *expr1 = e1;
+                *expr2 = e2;
+                return CallArgumentType::RIGHT_ASSIGN;
+            }
+
+            *expr1 = e1;
+            *expr2 = nullptr;
+            return CallArgumentType::NONFORMAL;
+        }
+
+        // function argument list
+        // ```st
+        // /*non-formal:*/             (B, 0, 5)
+        // /*formal (no arguments):*/  ()
+        // /*formal:*/                 (IN := B, MN := 0, MX := 0)
+        //                             (IN => B, MN => 0, MX := 0)
+        // ```
+        void ParseFunctionArgumentList(
             std::vector<AST::ExprPtr> *non_formal_args,
             std::vector<std::pair<AST::ExprPtr, AST::ExprPtr>> *formal_input_args,
             std::vector<std::pair<AST::ExprPtr, AST::ExprPtr>> *formal_output_args)
         {
-            bool is_formal = false;
-            bool is_non_formal = false;
+
+            if (!IsNextToken(Lexer::TokenType::ROUND_BRACKET_OPENING))
+            {
+                ErrorManager::Create(Error::ExpectedKeyword(GetCurrentToken().pos, Lexer::TokenType::ROUND_BRACKET_OPENING));
+                return;
+            }
+
+            PopToken();
 
             while (true)
             {
-                AST::ExprPtr expr = ParseExpression();
-                non_formal_args->push_back(expr);
-
-                if (!is_formal && IsNextToken(Lexer::TokenType::COLON))
+                if (IsNextToken(Lexer::TokenType::ROUND_BRACKET_CLOSING))
                 {
-                    PopToken();
-                    is_non_formal = true;
-                    continue;
+                    break;
                 }
 
-                if (!is_non_formal && IsNextToken(Lexer::TokenType::ASSIGN))
-                {
-                    PopToken();
-                    is_formal = true;
+                AST::ExprPtr expr1, expr2;
+                CallArgumentType arg_type = ParseArgument(&expr1, &expr2);
 
-                    AST::ExprPtr right_expr = ParseExpression();
-                    formal_input_args->emplace_back(expr, right_expr);
+                // check for errors
+                if (!expr1)
+                {
+                    break;
                 }
-                else if (!is_non_formal && IsNextToken(Lexer::TokenType::RIGHT_ASSIGN))
+                if (arg_type == CallArgumentType::LEFT_ASSIGN && !expr2)
                 {
-                    PopToken();
-                    is_formal = true;
-
-                    AST::ExprPtr right_expr = ParseExpression();
-                    formal_output_args->emplace_back(expr, right_expr);
+                    break;
                 }
 
-                if (IsNextToken(Lexer::TokenType::COLON))
+                if (arg_type == CallArgumentType::RIGHT_ASSIGN && !expr2)
                 {
-                    PopToken();
-                    continue;
+                    break;
                 }
 
-                break;
+                // assign
+                if (arg_type == CallArgumentType::NONFORMAL)
+                {
+                    non_formal_args->emplace_back(expr1);
+                }
+
+                if (arg_type == CallArgumentType::LEFT_ASSIGN)
+                {
+                    formal_input_args->emplace_back(expr1, expr2);
+                }
+
+                if (arg_type == CallArgumentType::RIGHT_ASSIGN)
+                {
+                    formal_output_args->emplace_back(expr1, expr2);
+                }
+
+                if (!IsNextToken(Lexer::TokenType::COMMA))
+                {
+                    break;
+                }
+                
+                PopToken();
             }
 
-            if (is_formal)
+            if (!IsNextToken(Lexer::TokenType::ROUND_BRACKET_CLOSING))
             {
-                non_formal_args->clear();
+                ErrorManager::Create(Error::ExpectedKeyword(GetCurrentToken().pos, Lexer::TokenType::ROUND_BRACKET_CLOSING));
             }
-            if (is_non_formal)
-            {
-                formal_input_args->clear();
-                formal_output_args->clear();
-            }
+
+            PopToken();
         }
 
+        // function calls
+        // ```st
+        // /*non-formal:*/             LIMIT(B, 0, 5)
+        // /*formal (no arguments):*/  LIMIT()
+        // /*formal:*/                 LIMIT(IN := B, MN := 0, MX := 0)
+        //                             LIMIT(IN => B, MN => 0, MX := 0)
+        // ```
         [[nodiscadr]] AST::ExprPtr ParseFunctionCall()
         {
             if (!IsNextToken(Lexer::TokenType::IDENTIFIER))
@@ -364,35 +488,20 @@ namespace StParser::Expression
             std::string callee_name = callee_name_token.str; // name
             PopToken();
 
-            if (!IsNextToken(Lexer::TokenType::ROUND_BRACKET_OPENING))
-            {
-                ErrorManager::Create(Error::ExpectedKeyword(GetCurrentToken().pos, Lexer::TokenType::ROUND_BRACKET_OPENING));
-                return nullptr;
-            }
-
-            PopToken();
-
-            if (IsNextToken(Lexer::TokenType::ROUND_BRACKET_CLOSING))
-            {
-                PopToken();
-                return AST::MakeExpr(AST::FormalCall(callee_name_token.pos, callee_name));
-            }
-
             std::vector<AST::ExprPtr> non_formal_args;
             std::vector<std::pair<AST::ExprPtr, AST::ExprPtr>> formal_input_args;
             std::vector<std::pair<AST::ExprPtr, AST::ExprPtr>> formal_output_args;
 
-            ParseArgumentList(&non_formal_args,
-                              &formal_input_args,
-                              &formal_output_args);
+            ParseFunctionArgumentList(
+                &non_formal_args,
+                &formal_input_args,
+                &formal_output_args);
 
-            if (!IsNextToken(Lexer::TokenType::ROUND_BRACKET_CLOSING))
+            if (non_formal_args.size() && (formal_input_args.size() + formal_output_args.size()))
             {
-                ErrorManager::Create(Error::ExpectedKeyword(GetCurrentToken().pos, Lexer::TokenType::ROUND_BRACKET_CLOSING));
+                ErrorManager::Create(Error::MixingFormalAndNonformal(callee_name_token.pos));
                 return nullptr;
             }
-
-            PopToken();
 
             if (non_formal_args.size())
             {

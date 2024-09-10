@@ -65,6 +65,8 @@ add_executable(interpreter ${INTERPRETER_SOURCES})
 add_executable(packager ${PACKAGER_SOURCES})
 add_executable(sender ${SENDER_SOURCES})
 
+add_dependencies(stlang st_frontend packager sender)
+
 target_include_directories(stlang PUBLIC "src")
 target_include_directories(st_frontend PUBLIC "src")
 target_include_directories(interpreter PUBLIC "src")

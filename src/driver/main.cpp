@@ -84,7 +84,7 @@ int main(int argc, const char **argv)
     std::string linker_script = (sysroot / "ld/plc_default.ld").string();
 
     std::string lib_path = "-L" + (sysroot / "lib/thumbv7e-m+fp").string();
-    std::vector<std::string> libs = {"-lgcc", "-lc", "-lnosys"};
+    std::vector<std::string> libs = {"-lgcc", "-lc", "-lnosys", "-lm"};
 
     std::vector<std::string> default_st_files = {(sysroot / "stl/conv.st_extern").string()};
     std::vector<std::string> default_c_files = {(sysroot / "stl/conv.c").string()};

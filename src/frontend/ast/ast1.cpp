@@ -240,7 +240,7 @@ namespace AST
         // convert boost::multiprecision to llvm::APint
         std::vector<uint64_t> bits_vector;
 
-        bool is_negative = i_value.sign();
+        bool is_positive = i_value.sign();
         boost::multiprecision::export_bits(i_value, std::back_inserter(bits_vector), 64);
 
         switch (type)
@@ -260,7 +260,7 @@ namespace AST
         case Type::ULINT:
         {
             llvm::APInt value = llvm::APInt(type.GetSize(), bits_vector);
-            if (is_negative)
+            if (!is_positive)
             {
                 value.negate();
             }

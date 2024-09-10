@@ -128,8 +128,8 @@
         //     "--emit_ll_with_errors"
         // ],
 
-        "cwd": "${workspaceFolder}/benchmark/empty",
-        "args": ["empty.st", "-o", "empty.package"]
+        "cwd": "${workspaceFolder}/benchmark/delay",
+        "args": ["delay.st", "-o", "delay.package"]
         
         // "args": [
         //     "-modules",
