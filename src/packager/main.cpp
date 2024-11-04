@@ -5,8 +5,8 @@
 
 extern "C"
 {
-    constexpr uint32_t user_code_bin_size = 20 * 1024; // program memory - 20kB
-    constexpr uint32_t modules_count = 64;             // program memory - 20kB
+    constexpr uint32_t user_code_bin_size = 40 * 1024; // program memory - 40kB
+    constexpr uint32_t modules_count = 64;             // program memory - 40kB
 
     typedef void (*ProgramPtr)(void *);
     typedef void (*ProgramInitPtr)(void *);
@@ -152,19 +152,19 @@ int main(int argc, const char *argv[])
         return -1;
     }
 
-    if (!cli.IsFlagUsed(CommandLineFlags::INPUT_MODULE_CONFIG))
-    {
-        std::cout << "Error: missing module configuration file\n";
-        return -1;
-    }
+    // if (!cli.IsFlagUsed(CommandLineFlags::INPUT_MODULE_CONFIG))
+    // {
+    //     std::cout << "Error: missing module configuration file\n";
+    //     return -1;
+    // }
 
-    if (cli.GetFlagArgs(CommandLineFlags::INPUT_MODULE_CONFIG).size() < 1)
-    {
-        std::cout << "Error: missing module configuration file\n";
-        return -1;
-    }
+    // if (cli.GetFlagArgs(CommandLineFlags::INPUT_MODULE_CONFIG).size() < 1)
+    // {
+    //     std::cout << "Error: missing module configuration file\n";
+    //     return -1;
+    // }
 
-    std::string module_config_path = cli.GetFlagArgs(CommandLineFlags::INPUT_MODULE_CONFIG)[0];
+    // std::string module_config_path = cli.GetFlagArgs(CommandLineFlags::INPUT_MODULE_CONFIG)[0];
     std::string input_executable_path = cli.GetFlagArgs(CommandLineFlags::INPUT_EXECUTABLE)[0];
     std::string output_package_path = "./output.package";
 
@@ -180,11 +180,11 @@ int main(int argc, const char *argv[])
     std::vector<uint8_t> module_config;
     std::vector<uint8_t> input_executable;
 
-    if (!ReadFile(module_config_path, &module_config))
-    {
-        std::cout << "Error: Cannot open file: " << module_config_path << "\n";
-        return -1;
-    }
+    // if (!ReadFile(module_config_path, &module_config))
+    // {
+    //     std::cout << "Error: Cannot open file: " << module_config_path << "\n";
+    //     return -1;
+    // }
 
     if (!ReadFile(input_executable_path, &input_executable))
     {
@@ -198,23 +198,25 @@ int main(int argc, const char *argv[])
         return -1;
     }
 
-    if (module_config_path.size() > modules_count)
-    {
-        std::cout << "Modules config to big: \n";
-        return -1;
-    }
+    // if (module_config.size() > modules_count)
+    // {
+    //     std::cout << "Modules config to big: \n";
+    //     return -1;
+    // }
 
     // fill infor about required modules
     for (int i = 0; i < modules_count; i++)
     {
-        if (i < module_config.size())
-        {
-            block.code.required_modules[i] = module_config[i];
-        }
-        else
-        {
-            block.code.required_modules[i] = 0;
-        }
+        // if (i < module_config.size())
+        // {
+        //     block.code.required_modules[i] = module_config[i];
+        // }
+        // else
+        // {
+        //     block.code.required_modules[i] = 0;
+        // }
+
+        block.code.required_modules[i] = 0;
     }
 
     // clear user program

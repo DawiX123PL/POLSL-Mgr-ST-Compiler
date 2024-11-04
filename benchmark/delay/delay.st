@@ -4,7 +4,7 @@ PROGRAM main
         counter: LINT;
     END_VAR
 
-    counter := LINT#10_000;
+    counter := LINT#100_000;
 
     WHILE counter >= LINT#0 DO
         counter := counter - LINT#1;

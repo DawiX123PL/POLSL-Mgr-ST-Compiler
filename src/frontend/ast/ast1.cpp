@@ -414,22 +414,24 @@ namespace AST
 
         // adresy w gep {0, IQM, Module, ByteInModule}
         int iqm_address = (int)location;
-        int module_number = address[0];
-        int byte_in_module = address[1];
-
         std::vector<llvm::Value *> gep_address;
 
         if (location == Location::Memory)
         {
+            int byte_address = address[0];
+
             gep_address =
                 {
                     llvm::ConstantInt::get(u32_type, llvm::APInt(32, 0, false)),
                     llvm::ConstantInt::get(u32_type, llvm::APInt(32, iqm_address, false)),
-                    llvm::ConstantInt::get(u32_type, llvm::APInt(32, byte_in_module, false)),
+                    llvm::ConstantInt::get(u32_type, llvm::APInt(32, byte_address, false)),
                 };
         }
         else
         {
+            int module_number = address[0];
+            int byte_in_module = address[1];
+
             gep_address =
                 {
                     llvm::ConstantInt::get(u32_type, llvm::APInt(32, 0, false)),

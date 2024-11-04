@@ -25,6 +25,7 @@
 #define CONN_ERROR(error)                                                     \
     {                                                                         \
         std::cout << Console::FgBrightRed("[ERROR]") << " " << error << "\n"; \
+        std::cout.flush();                                                    \
         return -1;                                                            \
     }
 
@@ -150,8 +151,7 @@ int main(int argc, char const *argv[])
         std::vector<uint8_t> package_file_content;
         if (!ReadFile(package_path, &package_file_content))
         {
-            std::cout << "Error: Cannot open file: " << package_path << "\n";
-            return -1;
+            CONN_ERROR("Cannot open file: " << package_path)
         }
 
         CONN_INFO_VERBOSE(cli, "Upload file");
@@ -215,4 +215,6 @@ int main(int argc, char const *argv[])
     CONN_INFO_VERBOSE(cli, "Disconnecting");
     socket.close(ec);
     CONN_CHECK_ERROR(ec);
+
+    return 0;
 }

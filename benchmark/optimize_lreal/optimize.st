@@ -61,6 +61,6 @@ PROGRAM main
         minimum: LREAL; (* Comment *)
     END_VAR
 
-    minimum := GradientSearchMin(100, 100, 0.1);
+    minimum := GradientSearchMin(LREAL#100.0, LREAL#100.0, 1000);
 
 END_PROGRAM

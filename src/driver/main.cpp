@@ -71,8 +71,8 @@ int main(int argc, const char **argv)
     std::string target_triple = "thumbv7em-none-unknown-eabi";
     GetArgument(cli, &output_file, CommandLineFlags::TARGET_TRIPLE);
 
-    std::string modules_path = "plc_modules.modules";
-    GetArgument(cli, &modules_path, CommandLineFlags::MODULES);
+    // std::string modules_path = "plc_modules.modules";
+    // GetArgument(cli, &modules_path, CommandLineFlags::MODULES);
 
     std::filesystem::path sysroot = std::filesystem::path(cli.GetSelfPath()).parent_path().parent_path();
     std::filesystem::path bin = sysroot / "bin";
@@ -80,7 +80,8 @@ int main(int argc, const char **argv)
     std::string arch = "-march=armv7e-m+fp";
     std::string cpu = "-mcpu=cortex-m4";
     std::string fpu = "-mfpu=fpv4-sp-d16";
-    std::string float_abi = "-mfloat-abi=soft";
+    // std::string float_abi = "-mfloat-abi=soft";
+    std::string float_abi = "-mfloat-abi=hard";
     std::string linker_script = (sysroot / "ld/plc_default.ld").string();
 
     std::string lib_path = "-L" + (sysroot / "lib/thumbv7e-m+fp").string();
@@ -143,12 +144,13 @@ int main(int argc, const char **argv)
                                                output_file.replace_extension(".elf").string(),
                                                output_file.replace_extension(".bin").string()};
 
-    std::vector<std::string> packager_flags = {"-modules",
-                                               modules_path,
-                                               "-bin",
-                                               output_file.replace_extension(".bin").string(),
-                                               "-o",
-                                               output_file.replace_extension(".package").string()};
+    std::vector<std::string> packager_flags = {
+        // "-modules",
+        // modules_path,
+        "-bin",
+        output_file.replace_extension(".bin").string(),
+        "-o",
+        output_file.replace_extension(".package").string()};
 
     // execute programs
 
@@ -178,5 +180,5 @@ int main(int argc, const char **argv)
         return exit_code;
     }
 
-    return exit_code;
+    return 0;
 }
