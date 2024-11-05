@@ -61,8 +61,8 @@ llvm::Value *AST::NonformalCall::LLVMGetValue(LocalScope *ls, LLVMCompilerContex
     if (!function)
     {
         // TODO: error
-        return nullptr;
         ErrorManager::Create(Error::InternalCompilerError("Invalid Function Call"));
+        return nullptr;
     }
 
     if (this->input_arguments.size() != function->var_input.size())
