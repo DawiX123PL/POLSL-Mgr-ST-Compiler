@@ -62,11 +62,13 @@ llvm::Value *AST::NonformalCall::LLVMGetValue(LocalScope *ls, LLVMCompilerContex
     {
         // TODO: error
         return nullptr;
+        ErrorManager::Create(Error::InternalCompilerError("Invalid Function Call"));
     }
 
     if (this->input_arguments.size() != function->var_input.size())
     {
         // TODO: error inputs number does not match
+        ErrorManager::Create(Error::InternalCompilerError("Invalid Function Call"));
         return nullptr;
     }
 
@@ -75,11 +77,13 @@ llvm::Value *AST::NonformalCall::LLVMGetValue(LocalScope *ls, LLVMCompilerContex
     {
         if (!this->input_arguments[i])
         {
+            ErrorManager::Create(Error::InternalCompilerError("Invalid Function Call"));
             return nullptr;
         }
 
         if (this->input_arguments[i]->GetType(ls) != function->var_input[i].GetType())
         {
+            ErrorManager::Create(Error::InternalCompilerError("Invalid Function Call"));
             return nullptr;
         }
     }
@@ -114,6 +118,7 @@ llvm::Value *AST::NonformalCall::LLVMGetValue(LocalScope *ls, LLVMCompilerContex
     // check if function returns any non-void type
     if (!function->result)
     {
+        ErrorManager::Create(Error::InternalCompilerError("Invalid Function Call"));
         return nullptr;
     }
 
